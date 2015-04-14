@@ -1,0 +1,52 @@
+#include <socket++/handler/socket_client.hpp>
+
+	// Other
+#include <sstream>
+#include <errno.h>
+#include <string.h>
+
+namespace socketxx { namespace end {
+	
+		// Private external functions
+	namespace _socket_client {
+		
+			// connect() warper
+		void connect (socket_t fd, const sockaddr* addr, socklen_t addrlen) {
+			int r;
+			r = ::connect(fd, addr, addrlen);
+			if (r == SOCKET_ERROR) throw client_connect_error();
+		}
+		
+		void connect_timeout (socket_t fd, base_fd::fcntl_fl fnctl_flags, const sockaddr* addr, socklen_t addrlen, timeval timeout) {
+			int r;
+			fnctl_flags |= O_NONBLOCK;
+			r = ::connect(fd, addr, addrlen);
+			fnctl_flags &= ~O_NONBLOCK;
+			if (r == SOCKET_ERROR) {
+				if (errno != EINPROGRESS) throw client_connect_error();
+				fd_set set;
+			redo:
+				FD_ZERO(&set);
+				FD_SET(fd, &set);
+				r = ::select(fd+1, NULL, &set, NULL, &timeout);
+				if (r == 0) {
+					errno = ETIMEDOUT;
+					throw client_connect_error();
+				}
+				else if (r > 0) {
+					r = base_socket::_getopt_sock_int(fd, SO_ERROR);
+					if (r != 0) {
+						errno = r;
+						throw client_connect_error();
+					}
+					return;
+				} else {
+					if (errno == EINTR) goto redo;
+					throw client_connect_error("while waiting with select()");
+				}
+			}
+			return;
+		}
+	}
+	
+}}
