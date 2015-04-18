@@ -9,8 +9,13 @@ namespace socketxx { namespace end {
 	namespace _socket_server {
 	
 			// Start listening : create, bind, and put in listening state
-		void _server_launch (socket_t sock, const sockaddr* addr, size_t addrlen, u_int listen_max) {
+		void _server_launch (socket_t sock, const sockaddr* addr, size_t addrlen, u_int listen_max, bool reuse) {
 			int r;
+			if (reuse) {
+			#ifdef SO_REUSEADDR
+				base_socket::_setopt_sock_bool(sock, SO_REUSEADDR, true);
+			#endif
+			}
 			r = ::bind(sock, addr, (socklen_t)addrlen);
 			if (r == SOCKET_ERROR) throw server_launch_error(server_launch_error::BIND);
 			r = ::listen(sock, (int)listen_max);

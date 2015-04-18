@@ -39,6 +39,11 @@ namespace socketxx {
 	public:
 		server_accept_error() noexcept : classic_error("Server accept() error",socket_errno) { socket_errno_reset; }
 	};
+		// bad listening state
+	class server_listening_state : public socketxx::error {
+	public:
+		server_listening_state() noexcept : socketxx::error("bad server listening state") { };
+	};
 	
 #ifndef XIF_NO_THREADS
 	struct server_thread_data { void* _c; };
@@ -48,7 +53,7 @@ namespace socketxx {
 	namespace _socket_server {
 		
 			// Start listening state : create, bind, and put in listening state
-		void _server_launch (socket_t sock, const sockaddr* addr, size_t addrlen, u_int listen_max);
+		void _server_launch (socket_t sock, const sockaddr* addr, size_t addrlen, u_int listen_max, bool reuse);
 		
 			// Warper for accept() : return the new client's socket
 		socket_t _server_accept (socket_t sock, sockaddr* addr, socklen_t* addrlen);
@@ -178,8 +183,9 @@ namespace socketxx {
 #endif
 		
 			// Server listen infos
-		typename socket_base::addr_info _listen_addr;
-		const uint _listen_max;
+		typename socket_base::addr_info listen_addr;
+		bool listening;
+		inline void chkl () { if (listening == false) throw server_listening_state(); }
 		
 			// Timeout
 		timeval pool_timeout;
@@ -192,24 +198,30 @@ namespace socketxx {
 	public:
 		
 			// Start (with the same address) and stop (release the port) listening for new clients
-		void listening_start () {
-			auto _addr = _listen_addr._getaddr();
+		void listening_start (uint listen_max, bool reuse) {
+			if (listening == true) throw server_listening_state();
+			auto _addr = listen_addr._getaddr();
 			_addr.use(_addr_use_type_t::SERVER, *this);
-			_socket_server::_server_launch(socket_base::fd, (const sockaddr*)&_addr.addr, _addr.len, _listen_max);
+			_socket_server::_server_launch(socket_base::fd, (const sockaddr*)&_addr.addr, _addr.len, listen_max, reuse);
+			listening = true;
 		}
 		void listening_stop () {
-			_listen_addr._getaddr().unuse(_addr_use_type_t::SERVER, *this);
+			if (listening == false) throw server_listening_state();
+			listen_addr._getaddr().unuse(_addr_use_type_t::SERVER, *this);
 			socket_base::fd_close();
+			listening = false;
 		}
 		
 			// Constructor : set up the server
 			// Take the addr struct for binding, the pending client queue for accepting (you can use SOMAXCONN if defined)
-		socket_server (typename socket_base::addr_info addr, uint listen_max) : socket_base(), _listen_addr(addr), _listen_max(listen_max) {
-			listening_start();
+		socket_server (typename socket_base::addr_info addr, uint listen_max, bool reuse = false) : socket_base(), listen_addr(addr) {
+			this->listening_start(listen_max, reuse);
 		}
+			// Constructor, without starting listening
+		socket_server (typename socket_base::addr_info addr) : socket_base(), listen_addr(addr), listening(false) {}
 		
 			// Destructor
-		virtual ~socket_server () noexcept {}
+		virtual ~socket_server () noexcept { /* no need to call listening_stop, these actions are automatic */ }
 		
 			// Retain client and return iterator.
 		client_it retain_client (client& _client) { ::pthread_mutex_lock(&mutex); return _client._it = retained_clients.insert(retained_clients.end(), _client); ::pthread_mutex_unlock(&mutex); }
@@ -217,13 +229,13 @@ namespace socketxx {
 		void release_client (client_it it)        { ::pthread_mutex_lock(&mutex); retained_clients->_it = client_it(); retained_clients.erase(it); ::pthread_mutex_unlock(&mutex); }
 		
 			// Wait for new client an optionally retain it
-		client wait_new_client ()                 { typename socket_base::sockaddr_type addr; socklen_t len = sizeof(addr); socket_t new_fd = _socket_server::_server_accept(socket_base::fd, (sockaddr*)&addr, &len); typename socket_base::_addrt _addr({addr,len}); client cli (new_fd, typename socket_base::addr_info(_addr)); _addr.use(_addr_use_type_t::SERVER_CLI,cli); return cli; }
+		client wait_new_client ()                 { chkl(); typename socket_base::sockaddr_type addr; socklen_t len = sizeof(addr); socket_t new_fd = _socket_server::_server_accept(socket_base::fd, (sockaddr*)&addr, &len); typename socket_base::_addrt _addr({addr,len}); client cli (new_fd, typename socket_base::addr_info(_addr)); _addr.use(_addr_use_type_t::SERVER_CLI,cli); return cli; }
 		client_it wait_new_client_retained ()     { _mutex_lock _m(mutex); return retain_client(wait_new_client()); }
 			// Pool-timeout aware version of wait_new_client. Ignore signals interrupts.
-		client wait_new_client_timeout ()         { _socket_server::_select_throw_stop(socket_base::fd, INVALID_SOCKET, pool_timeout, true); return wait_new_client(); };
+		client wait_new_client_timeout ()         { chkl(); _socket_server::_select_throw_stop(socket_base::fd, INVALID_SOCKET, pool_timeout, true); return wait_new_client(); };
 			// Wait new client and interrupt if reveived changes on a pipe or any file descriptor. Pool-timeout aware. Can ignore signals interrupts.
-		client wait_new_client_stoppable (fd_t fd_monitor, bool ignsig = false)         _SOCKETXX_UNIX_IMPL({ _socket_server::_select_throw_stop(socket_base::fd, fd_monitor, pool_timeout, ignsig); return wait_new_client(); });
-		client wait_new_client_stoppable (std::vector<fd_t>& fds, bool ignsig = false)  _SOCKETXX_UNIX_IMPL({ _socket_server::_select_throw_stop(socket_base::fd, fds, pool_timeout, ignsig); return wait_new_client(); });
+		client wait_new_client_stoppable (fd_t fd_monitor, bool ignsig = false)         _SOCKETXX_UNIX_IMPL({ chkl(); _socket_server::_select_throw_stop(socket_base::fd, fd_monitor, pool_timeout, ignsig); return wait_new_client(); });
+		client wait_new_client_stoppable (std::vector<fd_t>& fds, bool ignsig = false)  _SOCKETXX_UNIX_IMPL({ chkl(); _socket_server::_select_throw_stop(socket_base::fd, fds, pool_timeout, ignsig); return wait_new_client(); });
 		
 #ifndef XIF_NO_THREADS
 			// Create thread with client
@@ -236,9 +248,9 @@ namespace socketxx {
 #endif
 		
 			// Pool all retained clients and wait for activity. Returns iterator of first awaked client in the list.
-		client_it wait_client_activity ()         { _mutex_lock _m(mutex); return this->_wait_client_activity(); }
+		client_it wait_client_activity ()         { chkl(); _mutex_lock _m(mutex); return this->_wait_client_activity(); }
 			// Fair version : avoids the firsts clients in the list to always be handled before the others, by moving them to the end of the list. Iterators remain valid.
-		client_it wait_client_activity_fair ()    { _mutex_lock _m(mutex); client_it it = this->_wait_client_activity(); retained_clients.splice(retained_clients.end(),retained_clients,it); return it; }
+		client_it wait_client_activity_fair ()    { chkl(); _mutex_lock _m(mutex); client_it it = this->_wait_client_activity(); retained_clients.splice(retained_clients.end(),retained_clients,it); return it; }
 		
 			// Pool all retained clients and wait for activity in loop. If activity occurs, calls back `cli_activity()` function or lambda.
 			// The loop is quitted if a callback ruturns `POOL_QUIT`. A timeout exception can occurs. Interruptions of syscalls are ignored.
@@ -272,6 +284,7 @@ namespace socketxx {
 		
 	template <typename socket_base, typename D>
 	void socket_server<socket_base,D>::wait_activity_loop (cli_callback_t client_activity) {
+		chkl();
 		fd_set set;
 		fd_t maxsock;
 	_rescan:
@@ -290,6 +303,7 @@ namespace socketxx {
 	
 	template <typename socket_base, typename D>
 	void socket_server<socket_base,D>::wait_activity_loop (cli_callback_t client_activity, cli_callback_t new_client) {
+		chkl();
 		fd_set set;
 		fd_t maxsock;
 	_rescan:
@@ -317,6 +331,7 @@ namespace socketxx {
 	
 	template <typename socket_base, typename D>
 	void socket_server<socket_base,D>::wait_activity_loop (cli_callback_t client_activity, cli_callback_t new_client, const std::vector<fd_t>& fds, fd_callback_t fd_activity) {
+		chkl();
 		fd_set set;
 		fd_t maxsock;
 	_rescan:
@@ -352,6 +367,7 @@ namespace socketxx {
 	
 	template <typename socket_base, typename D>
 	void socket_server<socket_base,D>::wait_activity_loop (cli_callback_t client_activity, cli_callback_t new_client, fd_t fd_monitor, fd_callback_t fd_activity) {
+		chkl();
 		fd_set set;
 		fd_t maxsock;
 	_rescan:

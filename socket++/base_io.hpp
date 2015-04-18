@@ -85,7 +85,7 @@
 #include <inttypes.h>
 #include <errno.h>
 #include <string>
-#include <stdexcept>
+#include <exception>
 #include <xifutils/traits.hpp>
 
 	/// OS specific headers
@@ -253,7 +253,7 @@ namespace socketxx {
 	protected:
 		std::string descr;
 		error (std::string descr) noexcept : descr(descr) {}
-		error () noexcept : descr("socket++ error") {}
+		explicit error () noexcept : descr("socket++ error") {}
 	public:
 		explicit error (const char* descr) noexcept : descr(descr) {}
 		virtual const char* what () const noexcept { return descr.c_str(); }
