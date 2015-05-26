@@ -11,7 +11,7 @@
 #include <openssl/err.h>
 struct _socketxx_openssl_init {
 	_socketxx_openssl_init() { SSL_library_init(); SSL_load_error_strings(); }
-	~_socketxx_openssl_init() {}
+	~_socketxx_openssl_init() { ERR_free_strings(); EVP_cleanup(); CRYPTO_cleanup_all_ex_data(); }
 };
 
 namespace socketxx {

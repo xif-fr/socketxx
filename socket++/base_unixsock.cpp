@@ -29,7 +29,7 @@ namespace socketxx {
 	}
 	
 	void base_unixsock::autodel_sock_file (sockaddr_un& addr) {
-		autodel_path = new char[::strlen(addr.sun_path)];
+		autodel_path = new char[::strlen(addr.sun_path)+1];
 		::strcpy(autodel_path, addr.sun_path);
 	}
 	
