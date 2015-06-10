@@ -117,13 +117,13 @@ std::string socketxx::io::_simple_socket::read_to_file (fd_t sock, fd_t file_w, 
 }*/
 
 	/// Read from socket and write to file, with classical copy to userspace
-unsigned char* socketxx::io::_simple_socket::read_to_file (fd_t sock, fd_t file_w, size_t sz) {
+unsigned char* socketxx::io::_simple_socket::read_to_file (fd_t sock, fd_t file_w, size_t sz, _simple_socket::trsf_info_f info_f) {
 	if (sz == 0) return NULL;
 	int r;
 #ifdef XIF_USE_SSL
 	MD5_CTX hashctx; MD5_Init(&hashctx);
 #endif
-	size_t chunksz = (size_t)::getpagesize() * 32;
+	size_t chunksz = (size_t)::getpagesize() * 16;
 	struct buffer {
 		void* b;
 		buffer (size_t chunksz) : b(NULL) { b = new char[chunksz]; }
@@ -145,6 +145,8 @@ unsigned char* socketxx::io::_simple_socket::read_to_file (fd_t sock, fd_t file_
 		if (r != 1)
 			throw socketxx::error("file transfer : MD5_Update() failed");
 	#endif
+		if (info_f)
+			info_f (sz-bytes_rest, sz);
 		size_t file_rest = (size_t)rs;
 		rs = ::write(file_w, buf.b, file_rest);
 		if (rs < 1) 
@@ -173,12 +175,13 @@ unsigned char* socketxx::io::_simple_socket::read_to_file (fd_t sock, fd_t file_
 }
 
 	/// Write from file to socket using mmap for zero-copy behavior
-socketxx::auto_bdata socketxx::io::_simple_socket::write_from_file (fd_t sock, fd_t file_r, size_t sz) {
+socketxx::auto_bdata socketxx::io::_simple_socket::write_from_file (fd_t sock, fd_t file_r, size_t sz, _simple_socket::trsf_info_f info_f) {
 	if (sz == 0) return NULL;
 	int r;
 #ifdef XIF_USE_SSL
 	MD5_CTX hashctx; MD5_Init(&hashctx);
 #endif
+	size_t bytes_done = 0;
 	size_t chunksz = (size_t)::getpagesize() * 16;
 	size_t chunk_rest = sz / chunksz;
 	for (off_t off_f = 0;; off_f += chunksz) {
@@ -204,6 +207,10 @@ socketxx::auto_bdata socketxx::io::_simple_socket::write_from_file (fd_t sock, f
 			throw socketxx::error("file send : MD5_Update() failed");
 	#endif
 		::munmap(mapchunk, chunksz);
+		if (info_f) {
+			bytes_done += chunksz;
+			info_f (bytes_done, sz);
+		}
 		if (chunk_rest == 0) break;
 		chunk_rest--;
 	}
