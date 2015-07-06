@@ -42,6 +42,7 @@
 		AAB6A05F1885DD9900D92C77 /* socket_client.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = socket_client.hpp; path = "socket++/handler/socket_client.hpp"; sourceTree = "<group>"; };
 		AAB6A0601885DD9900D92C77 /* socket_server.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = socket_server.cpp; path = "socket++/handler/socket_server.cpp"; sourceTree = "<group>"; };
 		AAB6A0611885DD9900D92C77 /* socket_server.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = socket_server.hpp; path = "socket++/handler/socket_server.hpp"; sourceTree = "<group>"; };
+		AABBF91B1B4B060B007A26DB /* VERSION */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = VERSION; sourceTree = "<group>"; };
 		AACF8BB418F88C410014AF0A /* base_inet.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = base_inet.hpp; path = "socket++/base_inet.hpp"; sourceTree = "<group>"; };
 		AACF8BB718F88CCA0014AF0A /* base_inet.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = base_inet.cpp; path = "socket++/base_inet.cpp"; sourceTree = "<group>"; };
 		AACF8BB918F88F660014AF0A /* base_unixsock.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = base_unixsock.hpp; path = "socket++/base_unixsock.hpp"; sourceTree = "<group>"; };
@@ -73,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				AA560B3D186E234D00769F90 /* README.md */,
+				AABBF91B1B4B060B007A26DB /* VERSION */,
 				AA560B0F186E209600769F90 /* Source */,
 				AA560B34186E21C300769F90 /* Autoconf files */,
 				AA560B06186E204000769F90 /* Products */,
