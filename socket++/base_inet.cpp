@@ -8,6 +8,7 @@
 	// Other
 #include <sstream>
 #include <string.h>
+#include <xifutils/intstr.hpp>
 
 const struct in_addr inaddr_any = {INADDR_ANY};
 
@@ -65,5 +66,10 @@ namespace socketxx {
 	base_netsock::addr_info::addr_info (const char* hostname, in_port_t port) : addr_info(socketxx::_resolve_hostname(hostname), port) {}
 	
 	base_netsock::addr_info::addr_info (in_port_t default_port, std::string addr_str) : addr(socketxx::_build_ipsock_addr_from_str(default_port,addr_str)), addrlen(sizeof(sockaddr_in)) {}
+	
+	std::string base_netsock::addr_info::addr2str (in_addr addr) {
+		const uint8_t* b = (const u_int8_t*)&addr.s_addr;
+		return ::ixtoa(b[0]) + '.' + ::ixtoa(b[1]) + '.' + ::ixtoa(b[2]) + '.' + ::ixtoa(b[3]);;
+	}
 	
 }

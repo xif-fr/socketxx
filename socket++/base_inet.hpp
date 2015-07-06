@@ -76,7 +76,7 @@ namespace socketxx {
 				// Create addr from standardized string "(HOSTNAME|IPADDR)[:PORT]".
 			addr_info (in_port_t default_port, std::string addr_str);
 				// IP addr to string representation
-			static std::string addr2str (in_addr addr) { char buf[INET_ADDRSTRLEN]; return ::inet_ntop(AF_INET, &addr, buf, sizeof(buf)); }
+			static std::string addr2str (in_addr addr);
 			static std::string addr2str (in_addr_t addr) { return addr_info::addr2str(::in_addr{addr}); }
 				// Getters
 			in_addr get_ip_addr () const { return addr.sin_addr; }
