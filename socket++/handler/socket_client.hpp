@@ -1,7 +1,11 @@
 #ifndef SOCKET_XX_CLIENT_H
 #define SOCKET_XX_CLIENT_H
 
+	// BaseIO
 #include <socket++/base_io.hpp>
+
+	// General headers
+#include <xifutils/traits.hpp>
 
 namespace socketxx { namespace end {
 	

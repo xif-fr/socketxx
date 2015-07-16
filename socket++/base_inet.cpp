@@ -1,14 +1,14 @@
 #include <socket++/base_inet.hpp>
 
-	// OS headers
-#include <netdb.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-
-	// Other
-#include <sstream>
+	// General headers
 #include <string.h>
 #include <xifutils/intstr.hpp>
+
+	// OS headers
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 const struct in_addr inaddr_any = {INADDR_ANY};
 

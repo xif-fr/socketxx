@@ -75,20 +75,17 @@
 #ifndef SOCKET_XX_BASE_H
 #define SOCKET_XX_BASE_H
 
-	/// Config header
+	// Config header
 #ifdef HAVE_CONFIG_H
 	#include <config.h>
 #endif
 
-	/// General headers
-#include <stdlib.h>
-#include <inttypes.h>
+	// General headers
 #include <errno.h>
 #include <string>
 #include <exception>
-#include <xifutils/traits.hpp>
 
-	/// OS specific headers
+	// OS specific headers
 #ifdef _WIN32 // Windows
 	#include <windows.h>
 	#include <winsock2.h>
@@ -117,12 +114,9 @@
 	#define _SOCKETXX_UNIX_IMPL(f) = delete
 	#error Winsocks not supported for the moment
 #else // UNIXs
-	#include <unistd.h>
 	#include <sys/types.h>
 	#include <sys/socket.h>
-	#include <sys/ioctl.h>
-	#include <sys/stat.h>
-	#include <fcntl.h>
+	#include <sys/fcntl.h>
 	typedef int fd_t;
 	typedef fd_t socket_t;
 	#define INVALID_SOCKET -1
@@ -139,7 +133,7 @@
 	#define _SOCKETXX_UNIX_IMPL(f) f
 #endif
 
-	/// Endianness
+	// Endianness
 // Define endianness (from Autoconf's WORDS_BIGENDIAN or system defs)
 #define XIF_SOCKETXX_BIG_ENDIAN 1
 #define XIF_SOCKETXX_LITTLE_ENDIAN 0
@@ -159,15 +153,10 @@
 #define XIF_SOCKETXX_ENDIANNESS_PRIORITY XIF_SOCKETXX_LITTLE_ENDIAN  // Little endian priority (Intel rules the world)
 #define XIF_SOCKETXX_ENDIANNESS_SAME XIF_SOCKETXX_ENDIANNESS_PRIORITY != XIF_SOCKETXX_ENDIANNESS
 
-	/// Threads (pthread)
-#ifndef XIF_NO_THREADS
-	#include <pthread.h>
-#endif
-
-	/// Reference counting
+	// Reference counting
 #include <xifutils/refcount++.hpp>
 
-	/// Debugging
+	// Debugging
 #if DEBUG
 	#include <xifdebug/xifdebug.hpp>
 	#include <xifdebug/on.h>
@@ -178,7 +167,8 @@
 	#define dvar(level, var)
 #endif
 
-	/// Other
+	// Time
+#include <time.h>
 // Timeval comparing
 inline bool operator== (timeval first, timeval second) { return (first.tv_sec == second.tv_sec) && (first.tv_usec == second.tv_usec); }
 inline bool operator!= (timeval first, timeval second) { return !(first == second); }

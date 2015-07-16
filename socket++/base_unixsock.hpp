@@ -7,7 +7,7 @@
 	// OS headers
 #include <sys/un.h>
 
-	// Other
+	// General headers
 #include <utility>
 
 namespace socketxx {

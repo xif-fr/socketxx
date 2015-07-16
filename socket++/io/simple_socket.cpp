@@ -1,10 +1,13 @@
 #include <socket++/io/simple_socket.hpp>
 
+	// OS headers
 #include <sys/mman.h>
 #ifdef XIF_USE_SSL
 	#include <openssl/md5.h>
 #endif
-
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 	/// Swap bytes when foreign host have not the same endianness
 void socketxx::io::_simple_socket::swapBytes(void* data_to_swap, size_t size) {

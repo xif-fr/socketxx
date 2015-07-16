@@ -1,11 +1,19 @@
 #include <socket++/base_io.hpp>
 
+	// General headers
 #include <sstream>
 #include <errno.h>
 #include <string.h>
 
+	// OS headers
 #if defined (_WIN32)
 	_socketxx_winsock_init _socketxx_winsock_data;
+#else // UNIXs
+	#include <unistd.h>
+	#include <sys/types.h>
+	#include <sys/socket.h>
+	#include <sys/stat.h>
+	#include <fcntl.h>
 #endif
 
 namespace socketxx {

@@ -1,9 +1,8 @@
 #include <socket++/handler/socket_client.hpp>
 
-	// Other
-#include <sstream>
-#include <errno.h>
-#include <string.h>
+	// OS headers
+#include <sys/select.h>
+#include <fcntl.h>
 
 namespace socketxx { namespace end {
 	

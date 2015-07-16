@@ -1,10 +1,18 @@
 #ifndef SOCKET_XX_SIMPLE_SOCKET_H
 #define SOCKET_XX_SIMPLE_SOCKET_H
 
+	// BaseIO
 #include <socket++/base_io.hpp>
-#include <string.h>
+
+	// General
+#include <inttypes.h>
+#include <string>
 #include <utility>
 #include <xifutils/polyvar.hpp>
+#include <xifutils/traits.hpp>
+
+	// OS headers
+#include <unistd.h>
 
 namespace socketxx { namespace io {
 	

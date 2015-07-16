@@ -1,5 +1,9 @@
 #include <socket++/io/tunnel.hpp>
 
+	// OS headers
+#include <unistd.h>
+#include <sys/select.h>
+
 namespace socketxx { namespace io {
 	
 		// Simple select/read&write/buffer tunneling, but very inefficient due to the two userspace copies

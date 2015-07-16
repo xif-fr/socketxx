@@ -44,6 +44,7 @@ if test "x$enable_threads" != xyes ; then
 	AC_DEFINE([XIF_NO_THREADS], [1], ["Disable threads features"])
 else
 	PKGCONFIG_ADD_LDFLAG="$PKGCONFIG_ADD_LDFLAG -lpthread"
+	AC_CHECK_HEADERS([pthread.h])
 fi
 
 # Stream operators
@@ -81,9 +82,9 @@ AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 
 # Checks for header files
-AC_CHECK_HEADERS([inttypes.h unistd.h])
+AC_CHECK_HEADERS([inttypes.h unistd.h fcntl.h errno.h netinet/tcp.h netdb.h arpa/inet.h netinet/in.h sys/un.h sys/stat.h sys/socket.h sys/types.h sys/mman.h])
 
 # Checks for library functions
-AC_CHECK_FUNCS([])
+AC_CHECK_FUNCS([strerror recv send setsockopt getsockopt shutdown read write close fstat fcntl socket munmap mmap lseek getpagesize open l64a clock rand dup accept listen bind select connect gethostbyname inet_pton unlink socketpair strlen])
 
 AC_OUTPUT

@@ -1,9 +1,13 @@
 #ifndef SOCKET_XX_TEXT_BUFFERED_BASE_H
 #define SOCKET_XX_TEXT_BUFFERED_BASE_H
 
+	// BaseIO
 #include <socket++/base_io.hpp>
+
+	// General
 #include <string>
 #include <string.h>
+#include <xifutils/traits.hpp>
 
 namespace socketxx { namespace io {
 	

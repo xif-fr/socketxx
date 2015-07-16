@@ -1,7 +1,12 @@
 #include <socket++/handler/socket_server.hpp>
 
+	// General headers
 #include <sstream>
 #include <errno.h>
+
+	// OS headers
+#include <sys/select.h>
+#include <sys/socket.h>
 
 namespace socketxx { namespace end {
 	

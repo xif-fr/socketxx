@@ -1,5 +1,9 @@
 #include <socket++/base_unixsock.hpp>
+
+	// OS headers
 #include <unistd.h>
+
+	// General headers
 #include <string.h>
 
 namespace socketxx {

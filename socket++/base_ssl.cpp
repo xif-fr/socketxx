@@ -1,18 +1,17 @@
 #include <socket++/base_ssl.hpp>
 
+	// General headers
 #include <sstream>
 #include <errno.h>
 
 #ifdef XIF_USE_SSL
 
+#warning TO DO : templatize base_ssl for all socket types
+
 _socketxx_openssl_init _socketxx_openssl_data;
 
-
-#ifdef XIF_USE_SSL
-	
 namespace socketxx {
-
-	#warning TO DO : templatize base_ssl for all socket types
+	
 	/************* BaseSSL Implementation *************/
 	
 		/// OpenSSL error
@@ -141,7 +140,5 @@ namespace socketxx {
 	}
 
 }
-		
-#endif
 
 #endif

@@ -1,12 +1,13 @@
 #ifndef SOCKET_XX_BASE_SSL_H
 #define SOCKET_XX_BASE_SSL_H
 
+	// BaseIO, BaseInet
 #include <socket++/base_io.hpp>
 #include <socket++/base_inet.hpp>
 
 #ifdef XIF_USE_SSL
 
-	/// SSL headers (OpenSSL)
+	// OpenSSL headers
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 struct _socketxx_openssl_init {

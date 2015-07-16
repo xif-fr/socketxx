@@ -1,5 +1,8 @@
 #include <socket++/io/text_buffered.hpp>
 
+	// OS headers
+#include <unistd.h>
+
 std::string socketxx::io::_text_socket::read_line (socketxx::base_fd& sock, i_fnct readf, std::string& buffer, const char* sep) {
 	uint8_t sepsz = (uint8_t)::strlen(sep);
 	for (;;) {

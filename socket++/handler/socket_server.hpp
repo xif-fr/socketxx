@@ -1,9 +1,10 @@
 #ifndef SOCKET_XX_HANDLER_SOCKET_SERVER_H
 #define SOCKET_XX_HANDLER_SOCKET_SERVER_H
 
+	// BaseIO
 #include <socket++/base_io.hpp>
-#include <netinet/in.h>
-#include <sys/un.h>
+
+	// General headers
 #include <list>
 #include <vector>
 #ifndef XIF_NO_CXX11_STL
@@ -11,6 +12,14 @@
 #elif !defined(XIF_NO_STD_FUNCTION)
 	#define XIF_NO_STD_FUNCTION
 #endif
+
+	// Threads
+#ifndef XIF_NO_THREADS
+	#include <pthread.h>
+#endif
+
+	// OS headers
+#include <sys/select.h>
 
 namespace socketxx { 
 	
