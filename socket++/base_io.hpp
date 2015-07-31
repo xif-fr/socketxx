@@ -361,8 +361,8 @@ namespace socketxx {
 		void _o_flags (const void* d, size_t len, int flags) _SOCKETXX_UNIX_IMPL({ _o(d, len); }) // Not applicable for simple fd, only for sockets !
 		
 			// Read
-		size_t _i (void* d, size_t maxlen) _SOCKETXX_WIN_DELETE; // Normal read, readed data's size is not guaranteed (min 1, max maxlen)
-		void _i_fixsize (void* d, size_t len) _SOCKETXX_WIN_DELETE; // Strict read : returns only if [len] data is readed (can block for a very long time : timeout is not strict, it _can_ be reseted each time data is received; use various methods)
+		size_t _i (void* d, size_t maxlen) _SOCKETXX_WIN_DELETE; // Normal read : read data's size is not guaranteed (min 1, max maxlen)
+		void _i_fixsize (void* d, size_t len) _SOCKETXX_WIN_DELETE; // Strict read : returns only if [len] data is read (can block for a very long time : timeout is not strict, it _can_ be reseted each time data is received; use various methods)
 		
 		public: struct _io_fncts { typedef size_t (socketxx::base_fd::* i_fnct) (void *, size_t); typedef void (socketxx::base_fd::* o_fnct) (const void *, size_t); i_fnct i; o_fnct o; };
 		protected: virtual _io_fncts _get_io_fncts () { return _io_fncts({ &base_fd::_i, &base_fd::_o }); }
@@ -422,7 +422,7 @@ namespace socketxx {
 
 			// Read
 		size_t _i (void* d, size_t maxlen);
-		void _i_fixsize (void* d, size_t len); // Returns only if [len] data is readed, Use MSG_WAITALL if possible
+		void _i_fixsize (void* d, size_t len); // Returns only if [len] data is read, Use MSG_WAITALL if possible
 		
 		virtual _io_fncts _get_io_fncts () { return _io_fncts({ (_io_fncts::i_fnct)&base_socket::_i, (_io_fncts::o_fnct)&base_socket::_o }); }
 	};

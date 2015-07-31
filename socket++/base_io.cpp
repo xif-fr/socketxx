@@ -72,13 +72,13 @@ namespace socketxx {
 	}
 	
 		// Read
-	size_t base_fd::_i (void* d, size_t maxlen) { // Normal read, readed data's size is not guaranteed (min 1, max maxlen)
+	size_t base_fd::_i (void* d, size_t maxlen) { // Normal read : read data's size is not guaranteed (min 1, max maxlen)
 		ssize_t r;
 		r = ::read(fd, d, maxlen);
 		if (r < 1) throw socketxx::io_error(io_error::READ);
 		return (size_t)r;
 	}
-	void base_fd::_i_fixsize (void* d, size_t len) { // Strict read : returns only if [len] data is readed - timeout is not strict, it is be reseted each time data is received
+	void base_fd::_i_fixsize (void* d, size_t len) { // Strict read : returns only if [len] data is read - timeout is not strict, it is be reseted each time data is received
 		ssize_t r;
 		char* data = (char*)d;
 		r = ::read(fd, data, len);
@@ -171,7 +171,7 @@ namespace socketxx {
 		return (size_t)r;
 	}
 #ifndef MSG_WAITALL
-	void base_socket::_i_fixsize (void* d, size_t len) { // Returns only if [len] data is readed
+	void base_socket::_i_fixsize (void* d, size_t len) { // Returns only if [len] data is read
 		ssize_t r;
 		char* data = (char*)d;
 		r = ::recv(fd, data, len, MSG_NOSIGNAL);
@@ -188,7 +188,7 @@ namespace socketxx {
 		}
 	}
 #else
-	void base_socket::_i_fixsize (void* d, size_t len) { // Returns only if [len] data is readed, Use MSG_WAITALL
+	void base_socket::_i_fixsize (void* d, size_t len) { // Returns only if [len] data is read, Use MSG_WAITALL
 		ssize_t r;
 		r = ::recv(fd, d, len, MSG_NOSIGNAL|MSG_WAITALL);
 		if (r < (ssize_t)len) throw socketxx::io_error(r, io_error::READ);
