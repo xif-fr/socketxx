@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 
 	/// Swap bytes when foreign host have not the same endianness
-void socketxx::io::_simple_socket::swapBytes(void* data_to_swap, size_t size) {
+void socketxx::io::_simple_socket::swapBytes(void* data_to_swap, size_t size) { // use bswap instructions
 	uint8_t* data = (uint8_t*)data_to_swap;
 	uint8_t tmp;
 	for (size_t i = 0; i < size/2; ++i) {

@@ -32,7 +32,7 @@
 		AA560B05186E204000769F90 /* libsocketxx.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libsocketxx.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA560B12186E20BE00769F90 /* base_io.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = base_io.cpp; path = "socket++/base_io.cpp"; sourceTree = "<group>"; };
 		AA560B13186E20BE00769F90 /* base_io.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = base_io.hpp; path = "socket++/base_io.hpp"; sourceTree = "<group>"; };
-		AA560B3B186E232800769F90 /* configure.ac */ = {isa = PBXFileReference; lastKnownFileType = text; path = configure.ac; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.sh; };
+		AA560B3B186E232800769F90 /* configure.ac */ = {isa = PBXFileReference; lastKnownFileType = text; path = configure.ac; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = "<none>"; };
 		AA560B3C186E233700769F90 /* socketxx.pc.in */ = {isa = PBXFileReference; lastKnownFileType = text; path = socketxx.pc.in; sourceTree = "<group>"; };
 		AA560B3D186E234D00769F90 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; wrapsLines = 1; };
 		AA9094B818F72C8700A09CDA /* quickdefs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = quickdefs.h; path = "socket++/quickdefs.h"; sourceTree = "<group>"; };
@@ -331,6 +331,7 @@
 				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
 				EXECUTABLE_PREFIX = lib;
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					"MSG_NOSIGNAL=0",
 					"XIF_SOCKETXX_ENDIANNESS=0",
 					XIF_USE_SSL,
 					"DEBUG=1",
@@ -366,6 +367,7 @@
 				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
 				EXECUTABLE_PREFIX = lib;
 				GCC_PREPROCESSOR_DEFINITIONS = (
+					"MSG_NOSIGNAL=0",
 					"XIF_SOCKETXX_ENDIANNESS=0",
 					"XIF_USE_SSL=1",
 				);

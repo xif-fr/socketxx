@@ -146,11 +146,6 @@ namespace socketxx {
 	
 		/// Common I/O routines
 
-		// Default send() and recv() flags
-	#ifndef MSG_NOSIGNAL
-		#define MSG_NOSIGNAL 0
-	#endif
-	
 		// Send
 	void base_socket::_o (const void* d, size_t len) { // Normal send()
 		ssize_t r;
