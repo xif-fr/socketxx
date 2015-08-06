@@ -27,8 +27,8 @@ namespace socketxx { namespace io {
 		
 			// File transfer functions
 		typedef std::function< void (size_t done, size_t tot) > trsf_info_f;
-		unsigned char* read_to_file (fd_t sock, fd_t file_w, size_t sz, trsf_info_f); // Read from socket and write to file (return hash if enabled or NULL)
-		auto_bdata write_from_file (fd_t sock, fd_t file_r, size_t sz, trsf_info_f); // Read from file and write to socket
+		unsigned char* read_to_file (socketxx::base_fd& s, base_fd::_io_fncts::i_fnct i, base_fd::_io_fncts::o_fnct o, fd_t file_w, size_t sz, trsf_info_f); // Read from socket and write to file (return hash if enabled or NULL)
+		auto_bdata write_from_file (socketxx::base_fd& s, base_fd::_io_fncts::i_fnct i, base_fd::_io_fncts::o_fnct o, fd_t file_r, size_t sz, trsf_info_f); // Read from file and write to socket
 		bool same_hash (unsigned char* hash, auto_bdata s_hash); // Autodelete[] hashs
 		fd_t create_temp_file (std::string& file_name); // file_name is only a prefix, not a template name
 		size_t open_file_read (fd_t& filefd, const char* path); // Open a file and returns size
@@ -80,8 +80,8 @@ namespace socketxx { namespace io {
 		std::string i_str ();
 		template <typename int_t> int_t i_int ()            { int_t n; io_base::_i_fixsize(&n, sizeof(int_t)); return n; } // Endianness is already converted by sender
 		double i_float ()                                   { int64_t t = this->i_int<int64_t>(); return *((double*)&t); } // Size of doubles must be 8 bytes and internal representation must be the same on both side
-		size_t i_file (fd_t file_w, _simple_socket::trsf_info_f = NULL);                                                                                       // Return the file's size.
-		std::string i_file (std::string file_prefix, _simple_socket::trsf_info_f = NULL);                                                                      // Create temporary file in tmp dir with template name. Return the file path. File is RW.
+		size_t i_file (fd_t file_w, _simple_socket::trsf_info_f = NULL);                       // Return the file's size.
+		std::string i_file (std::string file_prefix, _simple_socket::trsf_info_f = NULL);      // Create temporary file in tmp dir with template name. Return the file path. File is RW.
 		void i_buf (void* buf, size_t len)                  { io_base::_i_fixsize(buf, len); } // Size is guaranteed to be the final read size
 		void* i_bin (size_t& len)                           { len = i_int<uint32_t>(); if (!len) return NULL; void* p = new char[len]; io_base::_i_fixsize(p,len); return p; } // Need to be deleted[] if not NULL
 		auto_bdata i_bin ()                                 { auto_bdata bd; bd.p = this->i_bin(bd.len); return bd; }      // Autodelete data with refcounting 
@@ -216,7 +216,7 @@ namespace socketxx { namespace io {
 	template <typename io_base> 
 	size_t simple_socket<io_base>::i_file (fd_t file_w, _simple_socket::trsf_info_f info_f) {
 		size_t sz = this->i_int<uint64_t>();
-		unsigned char* hash = _simple_socket::read_to_file(base_fd::fd, file_w, sz, info_f);
+		unsigned char* hash = _simple_socket::read_to_file(*this, this->_get_io_fncts().i, this->_get_io_fncts().o, file_w, sz, info_f);
 		if (not _simple_socket::same_hash(hash, this->i_bin())) 
 			throw socketxx::error("File transfer : MD5 checksums don't mach !");
 		return sz;
@@ -227,7 +227,7 @@ namespace socketxx { namespace io {
 		try {
 			size_t sz = this->i_int<uint64_t>();
 			tempfd = _simple_socket::create_temp_file(file_name);
-			unsigned char* hash = _simple_socket::read_to_file(base_fd::fd, tempfd, sz, info_f);
+			unsigned char* hash = _simple_socket::read_to_file(*this, this->_get_io_fncts().i, this->_get_io_fncts().o, tempfd, sz, info_f);
 			if (not _simple_socket::same_hash(hash, this->i_bin())) 
 				throw socketxx::error("File transfer : MD5 checksums don't mach !");
 		} catch (...) {
@@ -240,7 +240,7 @@ namespace socketxx { namespace io {
 	template <typename io_base> 
 	void simple_socket<io_base>::o_file (fd_t file_r, size_t sz, _simple_socket::trsf_info_f info_f) {
 		this->o_int<uint64_t>(sz);
-		auto_bdata hash = _simple_socket::write_from_file(base_fd::fd, file_r, sz, info_f);
+		auto_bdata hash = _simple_socket::write_from_file(*this, this->_get_io_fncts().i, this->_get_io_fncts().o, file_r, sz, info_f);
 		this->o_bin(hash.p, hash.len);
 	}
 	template <typename io_base> 

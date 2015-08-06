@@ -120,7 +120,7 @@ std::string socketxx::io::_simple_socket::read_to_file (fd_t sock, fd_t file_w, 
 }*/
 
 	/// Read from socket and write to file, with classical copy to userspace
-unsigned char* socketxx::io::_simple_socket::read_to_file (fd_t sock, fd_t file_w, size_t sz, _simple_socket::trsf_info_f info_f) {
+unsigned char* socketxx::io::_simple_socket::read_to_file (socketxx::base_fd& s, base_fd::_io_fncts::i_fnct i, base_fd::_io_fncts::o_fnct o, fd_t file_w, size_t sz, _simple_socket::trsf_info_f info_f) {
 	if (sz == 0) return NULL;
 	int r;
 #ifdef XIF_USE_SSL
@@ -139,21 +139,21 @@ unsigned char* socketxx::io::_simple_socket::read_to_file (fd_t sock, fd_t file_
 			chunksz = bytes_rest;
 		socket_errno_reset;
 		ssize_t rs;
-		rs = ::read(sock, buf.b, chunksz);
-		if (rs < 1) 
-			throw socketxx::io_error(rs, socketxx::io_error::READ);
-		bytes_rest -= (size_t)rs;
+		size_t sz;
+		sz = (s.*i)(buf.b, chunksz);
+		bytes_rest -= sz;
 	#ifdef XIF_USE_SSL
-		r = MD5_Update(&hashctx, buf.b, (size_t)rs);
+		r = MD5_Update(&hashctx, buf.b, sz);
 		if (r != 1)
 			throw socketxx::error("file transfer : MD5_Update() failed");
 	#endif
 		if (info_f)
 			info_f (sz-bytes_rest, sz);
-		size_t file_rest = (size_t)rs;
+		size_t file_rest = (size_t)sz;
 		rs = ::write(file_w, buf.b, file_rest);
+	_err:
 		if (rs < 1) 
-			throw socketxx::io_error(socketxx::io_error::READ);
+			throw socketxx::other_error("read_to_file : failed to write to file", false);
 		if ((size_t)rs != file_rest) {
 			uint8_t* b = (uint8_t*)buf.b + rs;
 			file_rest -= (size_t)rs;
@@ -162,7 +162,7 @@ unsigned char* socketxx::io::_simple_socket::read_to_file (fd_t sock, fd_t file_
 				b += rs;
 				rs = ::write(file_w, b, file_rest);
 				if (rs < 1) 
-					throw socketxx::io_error(socketxx::io_error::READ);
+					goto _err;
 			}
 		}
 	}
@@ -178,7 +178,7 @@ unsigned char* socketxx::io::_simple_socket::read_to_file (fd_t sock, fd_t file_
 }
 
 	/// Write from file to socket using mmap for zero-copy behavior
-socketxx::auto_bdata socketxx::io::_simple_socket::write_from_file (fd_t sock, fd_t file_r, size_t sz, _simple_socket::trsf_info_f info_f) {
+socketxx::auto_bdata socketxx::io::_simple_socket::write_from_file (socketxx::base_fd& s, base_fd::_io_fncts::i_fnct i, base_fd::_io_fncts::o_fnct o, fd_t file_r, size_t sz, _simple_socket::trsf_info_f info_f) {
 	if (sz == 0) return NULL;
 	int r;
 #ifdef XIF_USE_SSL
@@ -194,16 +194,7 @@ socketxx::auto_bdata socketxx::io::_simple_socket::write_from_file (fd_t sock, f
 		void* mapchunk = ::mmap(NULL, chunksz, PROT_READ, MAP_SHARED|MAP_FILE, file_r, off_f);
 		if (mapchunk == MAP_FAILED) 
 			throw socketxx::other_error("file send : mmap() failed",false);
-		size_t bytes_rest = chunksz;
-		while (bytes_rest != 0) {
-			socket_errno_reset;
-			const void* start = (caddr_t)mapchunk+(chunksz-bytes_rest);
-			ssize_t rs;
-			rs = ::write(sock, start, bytes_rest);
-			if (rs < 1) 
-				throw socketxx::io_error(rs, socketxx::io_error::READ);
-			bytes_rest -= (size_t)rs;
-		}
+		(s.*o)(mapchunk, chunksz);
 	#ifdef XIF_USE_SSL
 		r = MD5_Update(&hashctx, mapchunk, chunksz);
 		if (r != 1)

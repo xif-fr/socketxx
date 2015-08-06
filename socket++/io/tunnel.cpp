@@ -7,7 +7,7 @@
 namespace socketxx { namespace io {
 	
 		// Simple select/read&write/buffer tunneling, but very inefficient due to the two userspace copies
-	void _tunnel::do_copy_tunneling (socketxx::base_fd& s1, i_fnct i1, o_fnct o1, socketxx::base_fd& s2, i_fnct i2, o_fnct o2, void(*f)(bool,void**, size_t*, size_t), timeval timeout) {
+	void _tunnel::do_copy_tunneling (socketxx::base_fd& s1, base_fd::_io_fncts::i_fnct i1, base_fd::_io_fncts::o_fnct o1, socketxx::base_fd& s2, base_fd::_io_fncts::i_fnct i2, base_fd::_io_fncts::o_fnct o2, void(*f)(bool,void**, size_t*, size_t), timeval timeout) {
 		struct buffer {
 			size_t sz;
 			void* b;
