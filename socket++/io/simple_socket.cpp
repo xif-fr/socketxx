@@ -139,17 +139,17 @@ unsigned char* socketxx::io::_simple_socket::read_to_file (socketxx::base_fd& s,
 			chunksz = bytes_rest;
 		socket_errno_reset;
 		ssize_t rs;
-		size_t sz;
-		sz = (s.*i)(buf.b, chunksz);
-		bytes_rest -= sz;
+		size_t recsz;
+		recsz = (s.*i)(buf.b, chunksz);
+		bytes_rest -= recsz;
 	#ifdef XIF_USE_SSL
-		r = MD5_Update(&hashctx, buf.b, sz);
+		r = MD5_Update(&hashctx, buf.b, recsz);
 		if (r != 1)
 			throw socketxx::error("file transfer : MD5_Update() failed");
 	#endif
 		if (info_f)
 			info_f (sz-bytes_rest, sz);
-		size_t file_rest = (size_t)sz;
+		size_t file_rest = (size_t)recsz;
 		rs = ::write(file_w, buf.b, file_rest);
 	_err:
 		if (rs < 1) 
