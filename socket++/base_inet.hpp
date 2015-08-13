@@ -73,6 +73,7 @@ namespace socketxx {
 			addr_info (in_addr ip, in_port_t port);
 				// Create addr from hostname resolving
 			addr_info (const char* hostname, in_port_t port);
+			addr_info (const char* hostname, std::function<in_port_t()> port_f);
 				// Create addr from standardized string "(HOSTNAME|IPADDR)[:PORT]".
 			addr_info (in_port_t default_port, std::string addr_str);
 				// IP addr to string representation

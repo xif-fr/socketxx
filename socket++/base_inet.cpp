@@ -65,6 +65,8 @@ namespace socketxx {
 
 	base_netsock::addr_info::addr_info (const char* hostname, in_port_t port) : addr_info(socketxx::_resolve_hostname(hostname), port) {}
 	
+	base_netsock::addr_info::addr_info (const char* hostname, std::function<in_port_t()> port_f) : addr_info(socketxx::_resolve_hostname(hostname), port_f.operator()()) {}
+	
 	base_netsock::addr_info::addr_info (in_port_t default_port, std::string addr_str) : addr(socketxx::_build_ipsock_addr_from_str(default_port,addr_str)), addrlen(sizeof(sockaddr_in)) {}
 	
 	std::string base_netsock::addr_info::addr2str (in_addr addr) {
