@@ -8,6 +8,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+	// General headers
+#include <functional>
+#include <stdlib.h>
+
 	// To be coherent with in6addr_any
 extern const struct in_addr inaddr_any;
 

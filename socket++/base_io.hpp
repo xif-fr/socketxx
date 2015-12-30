@@ -3,7 +3,7 @@
  **********************************************************************
  * Copyright Félix Faisant 2012 - 2014
  * Software under GNU LGPL http://www.gnu.org/licenses/lgpl.html
- * For bug reports, help, or improve requests, please mail at Félix Faisant <xcodexif@xif.fr>
+ * For bug reports, help, or improvement requests, please mail at Félix Faisant <xcodexif@xif.fr>
  **********************************************************************
  * Socket++ is a C++ warper library for Input/Output systems, especially TCP/IP sockets
  * 
@@ -15,11 +15,11 @@
  * BaseIO classes are RAII objects for holding and manipulating underlying ressources, like 
  *  file descriptors, files, sockets, Windows HANDLEs... They are responsible for the ressources
  *  and must implement some basic I/O methods for reading and writing. They are also responsible
- *  for ressource flags/options/special operations. There may be a BaseIO for any thing in which
+ *  for ressource's flags/options/special operations. There may be a BaseIO for any thing in which
  *  we can write/send and (or?) read/receive data.
  * Shipped BaseIO classes :
  *    - BaseFD : root handler for UNIX file descriptors / Windows HANDLEs
- *    - BaseSocket : handler for sockets. Subclasses  propose an ::addr_info struct for a certain AF.
+ *    - BaseSocket : handler for sockets. Subclasses propose an ::addr_info struct for a certain AF.
  *      - BaseNetSock : TCP/IP sockets (AF_INET)
  *        - BaseSSL : handler for SSL sockets : SSL mode can be switched on/off at any time
  *      - BaseUnixSock : UNIX (local) sockets (AF_UNIX)
@@ -117,6 +117,7 @@
 	#include <sys/types.h>
 	#include <sys/socket.h>
 	#include <sys/fcntl.h>
+	#include <sys/time.h>
 	typedef int fd_t;
 	typedef fd_t socket_t;
 	#define INVALID_SOCKET -1
@@ -167,8 +168,6 @@
 	#define dvar(level, var)
 #endif
 
-	// Time
-#include <time.h>
 // Timeval comparing
 inline bool operator== (timeval first, timeval second) { return (first.tv_sec == second.tv_sec) && (first.tv_usec == second.tv_usec); }
 inline bool operator!= (timeval first, timeval second) { return !(first == second); }

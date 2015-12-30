@@ -96,7 +96,7 @@ namespace socketxx { namespace io {
 		void o_file (fd_t file_r, size_t file_size, _simple_socket::trsf_info_f = NULL);
 		void o_file (const char* path, _simple_socket::trsf_info_f = NULL);
 		void o_buf (const void* buf, size_t len)            { io_base::_o(buf, len); }
-		void o_bin (const void* p, size_t len)              { if (p == NULL) len = 0; this->o_int<uint32_t>(len); if (len != 0) io_base::_o(p, len); } // if len is 0, assuming NULL
+		void o_bin (const void* p, size_t len)              { if (p == NULL) len = 0; this->o_int<uint32_t>((uint32_t)len); if (len != 0) io_base::_o(p, len); } // if len is 0, assuming NULL
 		void o_sock (socketxx::base_fd& sock)               { sock.set_preserved(); fd_t new_fd = _simple_socket::dup_fd(sock.get_fd()); this->o_int<fd_t>(new_fd); } // dup the file descriptor, sock can be closed afetr
 		void o_var (const xif::polyvar& var);
 		
