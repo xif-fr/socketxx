@@ -101,7 +101,7 @@ namespace socketxx {
 		/// BaseSocket : Destructor
 	void base_socket::fd_close () noexcept {
 		if (shd->autoclose and fd != INVALID_HANDLE) {
-			if (not shd->autoclose) {
+			if (not shd->preserve_fd) {
 				::shutdown(fd, SHUT_RDWR);
 				#warning TO DO : SO_LINGER
 			}

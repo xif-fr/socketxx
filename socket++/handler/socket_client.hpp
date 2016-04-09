@@ -5,7 +5,7 @@
 #include <socket++/base_io.hpp>
 
 	// General headers
-#include <xifutils/traits.hpp>
+#include <type_traits>
 
 namespace socketxx { namespace end {
 	
@@ -28,7 +28,7 @@ namespace socketxx { namespace end {
 	};
 	
 		// Enabling socket_client<base_io> only for socketxx::base_socket derivatives
-	template <typename socket_base, typename = typename _enable_if_<std::is_base_of<socketxx::base_socket, socket_base>::value>::type>
+	template <typename socket_base, typename = typename std::enable_if<std::is_base_of<socketxx::base_socket, socket_base>::value>::type>
 		class socket_client;
 	
 	/***** Client-side ending (outcoming socket) *****

@@ -72,27 +72,15 @@ namespace socketxx {
 	
 		/// Start/stop SSL session
 	
-	void base_ssl::start_ssl (ssl_version version) {
+	void base_ssl::start_ssl () {
 		#warning test if already started
-		const SSL_METHOD* method = NULL;
-		switch (version) {
-			case SSLv3: method = SSLv3_client_method(); break;
-			case TLSv1: method = TLSv1_client_method(); break;
-			case TLSv1_2: method = TLSv1_2_client_method(); break;
-		}
-		this->new_ssl_socket(method);
+		this->new_ssl_socket(TLS_client_method());
 		if (SSL_connect(ssl_sock) <= 0) 
 			throw socketxx::ssl_error(ssl_error::START);
 	}
 
-	void base_ssl::wait_for_ssl (ssl_version version) {
-		const SSL_METHOD* method = NULL;
-		switch (version) {
-			case SSLv3: method = SSLv3_server_method(); break;
-			case TLSv1: method = TLSv1_server_method(); break;
-			case TLSv1_2: method = TLSv1_2_server_method(); break;
-		}
-		this->new_ssl_socket(method);
+	void base_ssl::wait_for_ssl () {
+		this->new_ssl_socket(TLS_server_method());
 		if (SSL_accept(ssl_sock) <= 0) 
 			throw socketxx::ssl_error(ssl_error::START);
 	}

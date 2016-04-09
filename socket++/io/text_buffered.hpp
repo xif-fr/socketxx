@@ -7,7 +7,7 @@
 	// General
 #include <string>
 #include <string.h>
-#include <xifutils/traits.hpp>
+#include <type_traits>
 
 namespace socketxx { namespace io {
 	
@@ -23,7 +23,7 @@ namespace socketxx { namespace io {
 	}
 	
 		// Enabling text_socket<io_base> only for socketxx::base_fd derivatives
-	template <typename io_base, typename = typename _enable_if_<std::is_base_of<socketxx::base_fd, io_base>::value>::type>
+	template <typename io_base, typename = typename std::enable_if<std::is_base_of<socketxx::base_fd, io_base>::value>::type>
 		class text_socket;
 	
 	/***** Text Buffered type I/O class *****

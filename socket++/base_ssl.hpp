@@ -57,15 +57,12 @@ namespace socketxx {
 			// Destuctor
 		virtual ~base_ssl () noexcept { REFCXX_WILL_DESTRUCT(base_fd) { if (ssl_sock != NULL) try { this->stop_ssl(); } catch (...) {} } }
 		
-			// SSL Version enum
-		enum ssl_version { SSLv3, TLSv1, TLSv1_2 };
-		
 			// Contructor from base_netsock
 		base_ssl (const socketxx::base_netsock& o) : base_netsock(o), ssl_sock(NULL), ssl_ctx(NULL) {}
 		
 			// SSL connection
-		void wait_for_ssl (ssl_version version); // For the initiator who waits the other side to begin the SSL connection (server side typically)
-		void start_ssl (ssl_version version); // For the side who really begin the SSL connection (client side typically)
+		void wait_for_ssl (); // For the initiator who waits the other side to begin the SSL connection (server side typically)
+		void start_ssl (); // For the side who really begin the SSL connection (client side typically)
 		void stop_ssl (); // For both
 		
 			// SSL flags

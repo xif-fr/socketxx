@@ -9,7 +9,7 @@
 #include <string>
 #include <utility>
 #include <xifutils/polyvar.hpp>
-#include <xifutils/traits.hpp>
+#include <type_traits>
 
 	// OS headers
 #include <unistd.h>
@@ -35,7 +35,7 @@ namespace socketxx { namespace io {
 	}
 	
 		// Enabling simple_socket<io_base> only for socketxx::base_fd derivatives
-	template <typename io_base, typename = typename _enable_if_<std::is_base_of<socketxx::base_fd, io_base>::value>::type>
+	template <typename io_base, typename = typename std::enable_if<std::is_base_of<socketxx::base_fd, io_base>::value>::type>
 		class simple_socket;
 	
 	/***** Simple_socket type I/O class *****
@@ -105,13 +105,13 @@ namespace socketxx { namespace io {
 		simple_socket& operator>> (char& byte)              { byte = i_char(); return *this; }
 		simple_socket& operator>> (bool& b)                 { b = i_bool(); return *this; }
 		simple_socket& operator>> (std::string& str)        { str = i_str(); return *this; }
-		template <typename int_t, typename _enable_if_<std::is_integral<int_t>::value,int>::type = 0, typename _enable_if_<sizeof(int_t)!=1,int>::type = 0>
+		template <typename int_t, typename std::enable_if<std::is_integral<int_t>::value and sizeof(int_t)!=1>::type* = nullptr>
 		simple_socket& operator>> (int_t& integer)          { integer = i_int<int_t>(); return *this; }
 			// Public stream-like write
 		simple_socket& operator<< (char byte)               { o_char(byte); return *this; }
 		simple_socket& operator<< (bool b)                  { o_bool(b); return *this; }
 		simple_socket& operator<< (const std::string& str)  { o_str(str); return *this; }
-		template <typename int_t, typename _enable_if_<std::is_integral<int_t>::value,int>::type = 0, typename _enable_if_<sizeof(int_t)!=1,int>::type = 0>
+		template <typename int_t, typename std::enable_if<std::is_integral<int_t>::value and sizeof(int_t)!=1>::type* = nullptr>
 		simple_socket& operator<< (int_t integer)           { o_int<int_t>(integer); return *this; }
 #endif
 		

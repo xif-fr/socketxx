@@ -1,7 +1,7 @@
 /**********************************************************************
  * Xif Socket++ Networking Library
  **********************************************************************
- * Copyright Félix Faisant 2012 - 2014
+ * Copyright Félix Faisant 2012 - 2016
  * Software under GNU LGPL http://www.gnu.org/licenses/lgpl.html
  * For bug reports, help, or improvement requests, please mail at Félix Faisant <xcodexif@xif.fr>
  **********************************************************************
@@ -65,7 +65,7 @@
  *  if you know what you're doing (eg. base_socket -> base_netsock if the underlying socket is AF_INET)
  *
  * The whole library error/event reporting is based on exceptions.
- * All the objetcs in this library are reference-counted, transparently. You have just to remember that 
+ * Most objects are reference-counted, transparently. You have just to remember that 
  *  you are free to copy socket objects. There are no pointers or object handlers.
  *
  * -== To Do : IPv6 full support - P2P Mode - Socket states ==-
@@ -120,6 +120,7 @@
 	#include <sys/time.h>
 	typedef int fd_t;
 	typedef fd_t socket_t;
+	#warning TO DO : remove public defines
 	#define INVALID_SOCKET -1
 	#define INVALID_HANDLE -1
 	#define _SOCKETXX_IS_INVALID_HANDLE(fd) if (fd < 0) 
@@ -156,17 +157,6 @@
 
 	// Reference counting
 #include <xifutils/refcount++.hpp>
-
-	// Debugging
-#if DEBUG
-	#include <xifdebug/xifdebug.hpp>
-	#include <xifdebug/on.h>
-#else
-	#define dfunc(level, func_name)
-	#define dinfo(level, str)
-	#define dformat(level, format, ...)
-	#define dvar(level, var)
-#endif
 
 // Timeval comparing
 inline bool operator== (timeval first, timeval second) { return (first.tv_sec == second.tv_sec) && (first.tv_usec == second.tv_usec); }
@@ -302,7 +292,7 @@ namespace socketxx {
 		fd_t fd;
 			// Shared socket settings
 		struct _shrd_data {
-			// Autoclose file descriptor ?
+			// Autoclose file descriptor
 			bool autoclose;
 			// Preserve the inode from future automatic actions
 			bool preserve_fd;
