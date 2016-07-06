@@ -27,8 +27,8 @@ namespace socketxx {
 		int r;
 		socket_t p[2];
 		r = ::socketpair((sa_family_t)AF_UNIX, SOCK_STREAM, 0, p);
-		if (r == SOCKET_ERROR)
-			throw socketxx::other_error("can't create socket pair", true);
+		if (r == -1)
+			throw socketxx::other_error("Failed to create socket pair");
 		return std::pair<base_unixsock,base_unixsock>( base_unixsock(true,p[0]), base_unixsock(true,p[1]) );
 	}
 	

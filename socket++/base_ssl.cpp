@@ -16,7 +16,7 @@ namespace socketxx {
 	
 		/// OpenSSL error
 
-	std::string socketxx::ssl_error::_str() const noexcept {
+	std::string socketxx::ssl_error::_str(_type t, SSL* ssl_sock, int ssl_r) noexcept {
 		std::ostringstream descr;
 		const char* when = NULL;
 		switch (t) {
@@ -44,7 +44,7 @@ namespace socketxx {
 		}
 		unsigned long err_error = ERR_get_error();
 		if (err_error == 0) {
-			if (ssl_r == SOCKET_ERROR) 
+			if (ssl_r == -1)
 				descr << " ! 0 = Underlying socket error = " << errno << " = " << strerror(errno);
 			else 
 				descr << " ! (an EOF was observed that violates the SSL protocol)";

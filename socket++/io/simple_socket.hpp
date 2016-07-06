@@ -223,7 +223,7 @@ namespace socketxx { namespace io {
 	}
 	template <typename io_base> 
 	std::string simple_socket<io_base>::i_file (std::string file_name, _simple_socket::trsf_info_f info_f) {
-		fd_t tempfd = INVALID_HANDLE;
+		fd_t tempfd = SOCKETXX_INVALID_HANDLE;
 		try {
 			size_t sz = this->i_int<uint64_t>();
 			tempfd = _simple_socket::create_temp_file(file_name);
@@ -231,7 +231,7 @@ namespace socketxx { namespace io {
 			if (not _simple_socket::same_hash(hash, this->i_bin())) 
 				throw socketxx::error("File transfer : MD5 checksums don't mach !");
 		} catch (...) {
-			if (tempfd != INVALID_HANDLE) { ::close(tempfd); ::unlink(file_name.c_str()); }
+			if (tempfd != SOCKETXX_INVALID_HANDLE) { ::close(tempfd); ::unlink(file_name.c_str()); }
 			throw;
 		}
 		::close(tempfd);
@@ -245,7 +245,7 @@ namespace socketxx { namespace io {
 	}
 	template <typename io_base> 
 	void simple_socket<io_base>::o_file (const char* path, _simple_socket::trsf_info_f info_f) {
-		fd_t filefd = INVALID_HANDLE;
+		fd_t filefd = SOCKETXX_INVALID_HANDLE;
 		size_t sz = _simple_socket::open_file_read(filefd, path);
 		try {
 			this->o_file(filefd, sz);

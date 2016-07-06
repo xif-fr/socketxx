@@ -19,16 +19,16 @@ namespace socketxx {
 
 		// OpenSSL exception
 	class ssl_error : public socketxx::error {
-	private:
-		std::string _str () const noexcept;
 	public:
 		enum _type { READ = 0, WRITE = 1, START, STOP } t;
 		SSL* ssl_sock;
 		int ssl_r;
-		ssl_error (_type t, SSL* sockssl = NULL, int ret = SOCKET_ERROR) noexcept : t(t), ssl_sock(sockssl), ssl_r(ret), error() { this->descr = this->_str(); }
+		ssl_error (_type t, SSL* sockssl = NULL, int ret = -1) noexcept : t(t), ssl_sock(sockssl), ssl_r(ret), error(_str(t,sockssl,ret)) {}
+	private:
+		static std::string _str (_type, SSL*, int) noexcept;
 	};
 	
-		// IO SSL error (you can catch it with io_error or ssl_error)
+		// IO SSL error (can be caught as io_error or ssl_error)
 	class io_ssl_error : public io_error, public ssl_error {
 	public:
 		io_ssl_error(io_error::_type t, SSL* sockssl, int ret) throw() : io_error(t, ret), ssl_error((ssl_error::_type)t, sockssl, ret) { }

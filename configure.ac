@@ -1,4 +1,4 @@
-AC_INIT([socket++], [3.9.2], [xcodexif@xif.fr], [socket++], [http://dev.xif.fr/socketxx])
+AC_INIT([socket++], [3.10], [xcodexif@xif.fr], [socket++], [http://dev.xif.fr/socketxx])
 AM_INIT_AUTOMAKE([foreign -Wall])
 AC_CONFIG_HEADERS([socket++/config.h])
 AC_CONFIG_SRCDIR([socket++/base_io.cpp])
@@ -70,6 +70,11 @@ if test "x$with_openssl" != xno ; then
 	)
 	PKGCONFIG_ADD_LDFLAG="$PKGCONFIG_ADD_LDFLAG -lssl -lcrypto"
 	PKGCONFIG_ADD_DEP="$PKGCONFIG_ADD_DEP libssl"
+	AC_CHECK_LIB([ssl], [TLS_client_method], [], [
+		AC_DEFINE([TLS_client_method], [TLSv1_2_client_method], [TLS_client_method fallback to TLSv1.2])
+		AC_DEFINE([TLS_server_method], [TLSv1_2_server_method], [TLS_server_method fallback to TLSv1.2])
+		AC_MSG_WARN([TLS flexible method not avalaible, falling back to TLSv1.2])
+	])
 fi
 AM_CONDITIONAL([SOCKETXX_ENABLE_SSL], [test "x$with_openssl" == xyes])
 

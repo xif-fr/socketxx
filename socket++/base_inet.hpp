@@ -21,7 +21,7 @@ namespace socketxx {
 	class dns_resolve_error : public socketxx::classic_error {
 	public:
 		const char* const failed_hostname;
-		dns_resolve_error(const char* host) noexcept : classic_error("Hostname resolving error",socket_errno), failed_hostname(host) { socket_errno_reset; }
+		dns_resolve_error(const char* host) noexcept : classic_error("Hostname resolving error",errno), failed_hostname(host) { errno_reset; }
 	};
 	
 		///------ Base class for internet TCP IPv4 sockets ------///

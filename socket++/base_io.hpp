@@ -5,12 +5,11 @@
  * Software under GNU LGPL http://www.gnu.org/licenses/lgpl.html
  * For bug reports, help, or improvement requests, please mail at Félix Faisant <xcodexif@xif.fr>
  **********************************************************************
- * Socket++ is a C++ warper library for Input/Output systems, especially TCP/IP sockets
- * 
- * This library is very modular and is shipped with some classes. Here is a short description.
- *  Full description of these classes can be found in respective headers.
+ * Socket++ is a light and modular C++ warper library for POSIX Input/Output systems,
+ *  especially TCP/IP sockets
  *
- * There are three groups of classes : BaseIO classes, IO protocols, and Connection Handlers.
+ * The interface is composed of three layers : BaseIO classes, IO protocols, and Connection Handlers.
+ * Full description of these classes can be found in respective headers.
  *
  * BaseIO classes are RAII objects for holding and manipulating underlying ressources, like 
  *  file descriptors, files, sockets, Windows HANDLEs... They are responsible for the ressources
@@ -80,60 +79,17 @@
 	#include <config.h>
 #endif
 
-	// General headers
+	// OS headers
 #include <errno.h>
+#define errno_reset errno=0
 #include <string>
 #include <exception>
-
-	// OS specific headers
-#ifdef _WIN32 // Windows
-	#include <windows.h>
-	#include <winsock2.h>
-	#include <ws2tcpip.h>
-	#include <io.h>
-	#pragma comment(lib, "ws2_32.lib")
-	typedef SOCKET socket_t;
-	typedef HANDLE fd_t;
-	typedef int socklen_t;
-	typedef SOCKADDR_IN sockaddr_in;
-	typedef SOCKADDR sockaddr;
-	typedef unsigned int sa_family_t
-	#define _SOCKETXX_IS_INVALID_HANDLE(fd) if (fd == INVALID_HANDLE) 
-	#define _SOCKETXX_IS_INVALID_SOCKET(fd) if (fd == INVALID_SOCKET) 
-	#define socket_errno WSAGetLastError()
-	#define socket_errno_reset WSASetLastError(0)
-	#define errno_reset errno = 0
-	struct _socketxx_winsock_init {
-		WSADATA WSAData;
-		_socketxx_winsock_init() { WSAStartup(MAKEWORD(2,2), &WSAData); }
-		~_socketxx_winsock_init() { WSACleanup(); }
-	};
-	#define _SOCKETXX_WIN_DELETE = delete
-	#define _SOCKETXX_UNIX_DELETE 
-	#define _SOCKETXX_WIN_IMPL(f) f
-	#define _SOCKETXX_UNIX_IMPL(f) = delete
-	#error Winsocks not supported for the moment
-#else // UNIXs
-	#include <sys/types.h>
-	#include <sys/socket.h>
-	#include <sys/fcntl.h>
-	#include <sys/time.h>
-	typedef int fd_t;
-	typedef fd_t socket_t;
-	#warning TO DO : remove public defines
-	#define INVALID_SOCKET -1
-	#define INVALID_HANDLE -1
-	#define _SOCKETXX_IS_INVALID_HANDLE(fd) if (fd < 0) 
-	#define _SOCKETXX_IS_INVALID_SOCKET(fd) if (fd < 0) 
-	#define SOCKET_ERROR -1
-	#define socket_errno errno
-	#define errno_reset errno = 0  // Which expands to `*__error()` = 0, so `errno = 0` is valid
-	#define socket_errno_reset errno_reset
-	#define _SOCKETXX_WIN_DELETE 
-	#define _SOCKETXX_UNIX_DELETE = delete
-	#define _SOCKETXX_WIN_IMPL(f) = delete
-	#define _SOCKETXX_UNIX_IMPL(f) f
-#endif
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+typedef int fd_t;
+typedef fd_t socket_t;
+#define SOCKETXX_INVALID_HANDLE -1
 
 	// Endianness
 // Define endianness (from Autoconf's WORDS_BIGENDIAN or system defs)
@@ -151,7 +107,7 @@
 	#endif
 #endif
 // Endianness priority. /!\WARNING/!\ If socket++ is build with big-endian priority, integer routines
-//  will not be compatible with little-endian socket++ libs. Change this only for isolated network system.
+//  will not be compatible with little-endian socket++ builds. Change this only for an isolated network system.
 #define XIF_SOCKETXX_ENDIANNESS_PRIORITY XIF_SOCKETXX_LITTLE_ENDIAN  // Little endian priority (Intel rules the world)
 #define XIF_SOCKETXX_ENDIANNESS_SAME XIF_SOCKETXX_ENDIANNESS_PRIORITY != XIF_SOCKETXX_ENDIANNESS
 
@@ -232,7 +188,6 @@ namespace socketxx {
 	protected:
 		std::string descr;
 		error (std::string descr) noexcept : descr(descr) {}
-		explicit error () noexcept : descr("socket++ error") {}
 	public:
 		explicit error (const char* descr) noexcept : descr(descr) {}
 		virtual const char* what () const noexcept { return descr.c_str(); }
@@ -245,7 +200,6 @@ namespace socketxx {
 		int std_errno;
 		static std::string _errno_str (int std_errno) noexcept;
 		classic_error (std::string descr, int err) noexcept : error(descr+_errno_str(err)), std_errno(err) {}
-		classic_error (int err) noexcept : error(), std_errno(err) {}
 	public:
 		int get_errno () const { return std_errno; }
 		virtual ~classic_error() noexcept;
@@ -253,36 +207,25 @@ namespace socketxx {
 	
 		// In-Out socket exception
 	class io_error : public socketxx::classic_error {
-	private:
-		std::string _str () const noexcept;
 	public:
 		enum _type { READ = 0, WRITE = 1 } err_type;
 		int ret;
-		io_error (ssize_t ret, _type t) noexcept : err_type(t), ret((int)ret), classic_error(socket_errno) { socket_errno_reset; this->descr = this->_str(); }  // For socket I/O
-		io_error (_type t, bool incompl_read = false) noexcept : err_type(t), ret((incompl_read)?1:SOCKET_ERROR), classic_error(errno) { errno_reset; this->descr = this->_str(); }  // For non-socket I/O
+		io_error (ssize_t ret, _type t) noexcept : err_type(t), ret((int)ret), classic_error(_str(t,ret), errno) { errno_reset; }  // For socket I/O
+		io_error (_type t, bool incompl_read = false) noexcept : err_type(t), ret((incompl_read)?1:-1), classic_error(_str(t,(incompl_read)?1:-1), errno) { errno_reset; }  // For non-socket I/O
 		bool is_connection_closed () const noexcept { return ret == 0; }	// `false` don't ensure that the connection is still opened !
-		bool is_timeout_error () const noexcept { return ret == ETIMEDOUT; }
-	};
-	
-		// Invalid socket or file descriptor exception or failed socket creation
-	class bad_socket_error : public socketxx::classic_error {
+		bool is_timeout_error () const noexcept { return std_errno == ETIMEDOUT; }
 	private:
-		std::string _str () const noexcept;
-	public:
-		bool fd_from_user;
-		enum fd_type_t { SOCKET, PIPE, FD } fd_type;
-		bad_socket_error(fd_type_t t, bool from_user = false) noexcept : fd_from_user(from_user), fd_type(t), classic_error(t==SOCKET?socket_errno:errno) { if (t==SOCKET) errno_reset; else socket_errno_reset; this->descr = this->_str(); }
+		static std::string _str (_type, int ret) noexcept; // uses errno
 	};
 	
 		// Other socket or syscall error
 	class other_error : public socketxx::classic_error {
 	public:
-		other_error(std::string what, bool socket_op) noexcept : classic_error(what,socket_op?socket_errno:errno) { if (socket_op) errno_reset; else socket_errno_reset; }
+		other_error(std::string what) noexcept : classic_error(what,errno) { errno_reset; }
 	};
 	
-		///------ Base class for simple file descriptors (stdin, pipe, files...) ------///
-	#define SOCKETXX_AUTO_CLOSE (bool)true
-	#define SOCKETXX_MANUAL_FD (bool)false
+		///-------------------------------------------------///
+		///------ Base class for any file descriptors ------///
 	class base_fd {
 	protected:
 			// Using refcounting
@@ -305,12 +248,15 @@ namespace socketxx {
 		} * shd;
 		
 			// Private initialization
-		base_fd () : REFCXX_CONSTRUCTOR(base_fd), fd(INVALID_HANDLE), shd(new _shrd_data()) {}
+		base_fd (fd_t handle) : REFCXX_CONSTRUCTOR(base_fd), fd(handle), shd(new _shrd_data()) {}
 		base_fd (bool autoclose_handle, fd_t handle) : REFCXX_CONSTRUCTOR(base_fd), fd(handle), shd(new _shrd_data(autoclose_handle)) {}  // Don't forget to check file descriptor
+		static void check_fd (fd_t);
 		
 	public:
 			// Public constructors with already created file descriptor
-		base_fd (fd_t handle, bool autoclose_handle) : REFCXX_CONSTRUCTOR(base_fd), fd(handle), shd(new _shrd_data(autoclose_handle)) { _SOCKETXX_IS_INVALID_HANDLE(fd) throw socketxx::bad_socket_error(bad_socket_error::FD, true); }
+		#define SOCKETXX_AUTO_CLOSE (bool)true
+		#define SOCKETXX_MANUAL_FD (bool)false
+		base_fd (fd_t handle, bool autoclose_handle) : REFCXX_CONSTRUCTOR(base_fd), fd(handle), shd(new _shrd_data(autoclose_handle)) { base_fd::check_fd(handle); }
 			// Copy constructor (with reference counting) /!\ base_fd::fd is not const, do NOT copy before the socket is connected or binded !
 		base_fd (const base_fd& o) : REFCXX_COPY_CONSTRUCTOR(base_fd, o), fd(o.fd), shd(o.shd) {}
 			// Assign reconstructor
@@ -333,10 +279,10 @@ namespace socketxx {
 			friend base_fd;
 			_SOCKETXX_FLAGS_COMMON(fcntl_fl);
 		};
-		fcntl_fl fcntl_flags () _SOCKETXX_UNIX_IMPL({ return fcntl_fl(fd); })
+		fcntl_fl fcntl_flags () { return fcntl_fl(fd); }
 		
 			// File descriptor type
-		mode_t fd_type () const _SOCKETXX_WIN_DELETE; // Cannot be possible with Windows HANDLEs
+		mode_t fd_type () const;
 		
 /*			// Aggregation
 		void cork ()   { }
@@ -346,26 +292,85 @@ namespace socketxx {
 		// Common I/O routines
 	protected:
 			// Write
-		void _o (const void* d, size_t len) _SOCKETXX_WIN_DELETE; // Normal write
-		void _o_flags (const void* d, size_t len, int flags) _SOCKETXX_UNIX_IMPL({ _o(d, len); }) // Not applicable for simple fd, only for sockets !
+		void _o (const void* d, size_t len); // Normal write
+		void _o_flags (const void* d, size_t len, int flags) { _o(d, len); } // Not applicable for simple fd, only for sockets !
 		
 			// Read
-		size_t _i (void* d, size_t maxlen) _SOCKETXX_WIN_DELETE; // Normal read : read data's size is not guaranteed (min 1, max maxlen)
-		void _i_fixsize (void* d, size_t len) _SOCKETXX_WIN_DELETE; // Strict read : returns only if [len] data is read (can block for a very long time : timeout is not strict, it _can_ be reseted each time data is received; use various methods)
+		size_t _i (void* d, size_t maxlen); // Normal read : read data's size is not guaranteed (min 1, max maxlen)
+		void _i_fixsize (void* d, size_t len); // Strict read : returns only if [len] data is read (can block for a very long time : timeout is not strict, it _can_ be reseted each time data is received; use various methods)
 		
 		public: struct _io_fncts { typedef size_t (socketxx::base_fd::* i_fnct) (void *, size_t); typedef void (socketxx::base_fd::* o_fnct) (const void *, size_t); i_fnct i; o_fnct o; };
 		protected: virtual _io_fncts _get_io_fncts () { return _io_fncts({ &base_fd::_i, &base_fd::_o }); }
 		
 	};
 	
+		///----------------------------------///
+		///------ Base class for pipes ------///
+	
+	#warning TO DO : Template class read/write mode, IO types have to be updated for
+	namespace _base_pipe {
+		const socketxx::error badend_w = socketxx::error("pipe end not writable"), badend_r = socketxx::error("pipe end not readable");
+		void _i_pipe (fd_t fd, const void* d, size_t len, timeval tm);
+		void _ifix_pipe (fd_t fd, const void* d, size_t len, timeval tm);
+	}
+	template<bool write>
+	class base_pipe : public base_fd {
+	protected:
+		
+			// Private initialization
+		static void check_pipe (fd_t, bool w);
+		base_pipe (bool autoclose_handle, fd_t handle) : base_fd(autoclose_handle, handle) {}  // Don't forget to check file descriptor
+			// Default
+		base_pipe () = delete;
+		
+	public:
+		
+			// Public constructors with already created socket
+		base_pipe (fd_t handle, bool autoclose_handle) : base_fd(autoclose_handle, handle), timeout(NULL_TIMEVAL) { base_pipe::check_pipe(handle, write); }
+			// Copy constuctor
+		base_pipe (const base_pipe<write>& other) : base_fd(other), timeout(other.timeout) {}
+			// Construct from base_fd
+		base_pipe (const base_fd& base) : base_fd(base), timeout(NULL_TIMEVAL) { base_pipe::check_pipe(this->fd, write); }
+		
+			// Destructor
+		virtual ~base_pipe () {}
+		
+			// Timeout (modifications dot not spread across copies)
+		timeval timeout;
+		
+		// Common I/O routines
+	protected:
+			// Send
+		void _o (const void* d, size_t len) {
+			if (not write) throw socketxx::error("pipe end not writable");
+			base_fd::_o(d, len);
+		}
+		void _o_flags (const void* d, size_t len, int) { _o(d, len); } // Not applicable for pipes
+		
+			// Read
+		size_t _i (void* d, size_t maxlen) {
+			if (not write) throw socketxx::error("pipe end not readable");
+			_base_pipe::_i_pipe(fd, d, maxlen, timeout);
+		}
+		void _i_fixsize (void* d, size_t len) {
+			if (not write) throw socketxx::error("pipe end not readable");
+			_base_pipe::_ifix_pipe(fd, d, len, timeout);
+		}
+		
+		virtual _io_fncts _get_io_fncts () { return _io_fncts({ (_io_fncts::i_fnct)&base_pipe::_i, (_io_fncts::o_fnct)&base_pipe::_o }); }
+	};
+	
+		///-------------------------------------------///
 		///------ Base class for stream sockets ------///
 /*	#warning TO DO : linux http://nick-black.com/dankwiki/index.php/Network_servers : splice() and tee(), signalfd(), sendfile(), aio_...(), epool(), pool(), kqueue()...*/
 	class base_socket : public base_fd {
 	protected:
 		
 			// Create a new socket
-		base_socket (sa_family_t af) : base_fd() { fd = ::socket((sa_family_t)af, SOCK_STREAM, 0); _SOCKETXX_IS_INVALID_SOCKET(fd) throw socketxx::bad_socket_error(bad_socket_error::SOCKET, false); }
+		static fd_t create_socket (sa_family_t af);
+		base_socket (sa_family_t af) : base_fd( base_socket::create_socket(af) ) {}
 			// Private initialization
+		void check_socket () const;
 		base_socket (bool autoclose_handle, socket_t handle) : base_fd(autoclose_handle, handle) {}  // Don't forget to check file descriptor
 			// Default
 		base_socket () = delete;
@@ -373,11 +378,11 @@ namespace socketxx {
 	public:
 		
 			// Public constructors with already created socket
-		base_socket (socket_t handle, bool autoclose_handle) : base_fd(autoclose_handle, handle) { _SOCKETXX_IS_INVALID_SOCKET(fd) throw socketxx::bad_socket_error(bad_socket_error::SOCKET, true); }
+		base_socket (socket_t handle, bool autoclose_handle) : base_fd(autoclose_handle, handle) { this->check_socket(); }
 			// Copy constuctor
 		base_socket (const base_socket& other) : base_fd(other) {}
 			// Construct from base_fd : underlying MUST be a socket
-		base_socket (const base_fd& base) : base_fd(base) {}
+		base_socket (const base_fd& base) : base_fd(base) { this->check_socket(); }
 		
 			// Destuctor
 		protected: void fd_close () noexcept;
@@ -393,8 +398,8 @@ namespace socketxx {
 		static void _setopt_sock      (socket_t fd, int flag, void* d, size_t s);
 		static size_t _getopt_sock    (socket_t fd, int flag, void* d, size_t s);
 /*		#warning TO DO (SOL_SOCKET level) : SO_NOSIGPIPE, SO_PRIORITY, SO_OOBINLINE, SO_KEEPALIVE, SO_MARK, SO_BINDTODEVICE ?, SO_RCVBUF, SO_RCVLOWAT+SO_SNDLOWAT (erm, 1 by default, which is right), SO_RCVTIMEO ofc, SO_SNDBUF, SO_TIMESTAMP ?*/
-		void set_read_timeout (timeval timeout)  { this->_setopt_sock(fd, SO_RCVTIMEO, &timeout, sizeof(timeval)); }
-		timeval get_read_timeout ()  { timeval tm = NULL_TIMEVAL; this->_getopt_sock(fd, SO_RCVTIMEO, &tm, sizeof(timeval)); return tm; }
+		void set_read_timeout (timeval timeout);
+		timeval get_read_timeout ();
 		
 			// ioctl()
 /*		#warning TO DO : FIONREAD, SIOCSPGRP ?, SIOCGSTAMP ?, SIOCATMARK, FIONBIO (if not done by fcntl), http://www.linux-kheops.com/doc/man/manfr/man-html-0.9/man2/ioctl_list.2.html => see sockios.h section */	
@@ -415,26 +420,6 @@ namespace socketxx {
 		
 		virtual _io_fncts _get_io_fncts () { return _io_fncts({ (_io_fncts::i_fnct)&base_socket::_i, (_io_fncts::o_fnct)&base_socket::_o }); }
 	};
-	
-		///------ Base class for files ------///
-/*	class base_file : public base_fd {
-	protected:
-			// 
-		fd_t fd_read;
-		fd_t fd_write;
-		
-		#warning TO DO : Use it for stdin and co. (declared as `FILE* stdin` on Windows)
-		#warning Use fwrite() (stdc) & co. instead of write() & co.
-		#warning fcntl() : F_GETLK/F_SETLK/F_SETLKW
-	};*/
-	
-		///------ Base class for pipes ------///
-/*	class base_pipe : public base_fd {
-		#warning WIN32 IDEA : inline int pipe(fd_t* pair) { return _pipe(pair, WIN_PIPE_SIZE, _O_BINARY); }
-		#warning WIN32 IDEA : Anonymous pipes (half duplex) : http://msdn.microsoft.com/en-us/library/windows/desktop/aa365139(v=vs.85).aspx
-		#warning WIN32 IDEA : Named pipes (half or full duplex, one or more clients) : http://msdn.microsoft.com/en-us/library/windows/desktop/aa365590(v=vs.85).aspx
-		#warning IDEA : http://stackoverflow.com/questions/1583005/is-there-any-difference-between-socketpair-and-pair-of-unnamed-pipes
-	};*/
 	
 }
 

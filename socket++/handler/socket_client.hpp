@@ -23,8 +23,8 @@ namespace socketxx { namespace end {
 	class client_connect_error : public socketxx::classic_error {
 		constexpr static const char* err_str = "Failed to connect client to host";
 	public:
-		client_connect_error() noexcept : classic_error(err_str,socket_errno) { socket_errno_reset; }
-		client_connect_error(const char* more) noexcept : classic_error(std::string(err_str)+' '+more,socket_errno) { socket_errno_reset; }
+		client_connect_error() noexcept : classic_error(err_str, errno) { errno_reset; }
+		client_connect_error(const char* more) noexcept : classic_error(std::string(err_str)+' '+more, errno) { errno_reset; }
 	};
 	
 		// Enabling socket_client<base_io> only for socketxx::base_socket derivatives

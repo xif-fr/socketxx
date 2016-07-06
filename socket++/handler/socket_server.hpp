@@ -32,21 +32,21 @@ namespace socketxx {
 	
 		// Error during server launching (reuse port, bind or listen)
 	class server_launch_error : public socketxx::classic_error {
-	private:
-		std::string _str () const noexcept;
 	public:
 		enum _type { BIND, LISTEN } type;
-		server_launch_error(_type t) throw() : type(t), socketxx::classic_error(socket_errno) { socket_errno_reset; this->descr = this->_str(); }
+		server_launch_error(_type t) throw() : type(t), socketxx::classic_error(_str(t),errno) { errno_reset; }
+	private:
+		static std::string _str (_type) noexcept;
 	};
 		// select() error or timeout
 	class server_select_error : public socketxx::classic_error {
 	public:
-		server_select_error() noexcept : classic_error("Server select() error during client activity waiting",socket_errno) { socket_errno_reset; }
+		server_select_error() noexcept : classic_error("Server select() error during client activity waiting",errno) { errno_reset; }
 	};
 		// accept() error
 	class server_accept_error : public socketxx::classic_error {
 	public:
-		server_accept_error() noexcept : classic_error("Server accept() error",socket_errno) { socket_errno_reset; }
+		server_accept_error() noexcept : classic_error("Server accept() error",errno) { errno_reset; }
 	};
 		// bad listening state
 	class server_listening_state : public socketxx::error {
@@ -241,10 +241,10 @@ namespace socketxx {
 		client wait_new_client ()                 { chkl(); typename socket_base::sockaddr_type addr; socklen_t len = sizeof(addr); socket_t new_fd = _socket_server::_server_accept(socket_base::fd, (sockaddr*)&addr, &len); typename socket_base::_addrt _addr({addr,len}); client cli (new_fd, typename socket_base::addr_info(_addr)); _addr.use(_addr_use_type_t::SERVER_CLI,cli); return cli; }
 		client_it wait_new_client_retained ()     { _mutex_lock _m(mutex); return retain_client(wait_new_client()); }
 			// Pool-timeout aware version of wait_new_client. Ignore signals interrupts.
-		client wait_new_client_timeout ()         { chkl(); _socket_server::_select_throw_stop(socket_base::fd, INVALID_SOCKET, pool_timeout, true); return wait_new_client(); };
+		client wait_new_client_timeout ()         { chkl(); _socket_server::_select_throw_stop(socket_base::fd, SOCKETXX_INVALID_HANDLE, pool_timeout, true); return wait_new_client(); }
 			// Wait new client and interrupt if reveived changes on a pipe or any file descriptor. Pool-timeout aware. Can ignore signals interrupts.
-		client wait_new_client_stoppable (fd_t fd_monitor, bool ignsig = false)         _SOCKETXX_UNIX_IMPL({ chkl(); _socket_server::_select_throw_stop(socket_base::fd, fd_monitor, pool_timeout, ignsig); return wait_new_client(); });
-		client wait_new_client_stoppable (std::vector<fd_t>& fds, bool ignsig = false)  _SOCKETXX_UNIX_IMPL({ chkl(); _socket_server::_select_throw_stop(socket_base::fd, fds, pool_timeout, ignsig); return wait_new_client(); });
+		client wait_new_client_stoppable (fd_t fd_monitor, bool ignsig = false)        { chkl(); _socket_server::_select_throw_stop(socket_base::fd, fd_monitor, pool_timeout, ignsig); return wait_new_client(); }
+		client wait_new_client_stoppable (std::vector<fd_t>& fds, bool ignsig = false) { chkl(); _socket_server::_select_throw_stop(socket_base::fd, fds, pool_timeout, ignsig); return wait_new_client(); }
 		
 #ifndef XIF_NO_THREADS
 			// Create thread with client
@@ -270,9 +270,9 @@ namespace socketxx {
 			// After each `new_client()` callback, the retained-client list is re-scanned, so any change in this list will be seen.
 		void wait_activity_loop (cli_callback_t cli_activity, cli_callback_t new_client);
 			// With `fd_activity` callback defined, you can also monitor inputs on any file descriptors (stdin, pipes, files...)
-		void wait_activity_loop (cli_callback_t cli_activity, cli_callback_t new_client, const std::vector<fd_t>& fds, fd_callback_t fd_activity) _SOCKETXX_WIN_DELETE;
+		void wait_activity_loop (cli_callback_t cli_activity, cli_callback_t new_client, const std::vector<fd_t>& fds, fd_callback_t fd_activity);
 			// Specialized version : This one monitors only one additional file descriptor
-		void wait_activity_loop (cli_callback_t cli_activity, cli_callback_t new_client, fd_t fd_monitor, fd_callback_t fd_activity) _SOCKETXX_WIN_DELETE;
+		void wait_activity_loop (cli_callback_t cli_activity, cli_callback_t new_client, fd_t fd_monitor, fd_callback_t fd_activity);
 		
 			// Set pool-timeout, used as maximum wait timeout in pool methods. Null timeout disable it.
 		void set_pool_timeout (timeval timeout) { pool_timeout = timeout; }

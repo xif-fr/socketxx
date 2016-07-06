@@ -13,7 +13,7 @@ namespace socketxx { namespace end {
 		void connect (socket_t fd, const sockaddr* addr, socklen_t addrlen) {
 			int r;
 			r = ::connect(fd, addr, addrlen);
-			if (r == SOCKET_ERROR) throw client_connect_error();
+			if (r == -1) throw client_connect_error();
 		}
 		
 		void connect_timeout (socket_t fd, base_fd::fcntl_fl fnctl_flags, const sockaddr* addr, socklen_t addrlen, timeval timeout) {
@@ -21,7 +21,7 @@ namespace socketxx { namespace end {
 			fnctl_flags |= O_NONBLOCK;
 			r = ::connect(fd, addr, addrlen);
 			fnctl_flags &= ~O_NONBLOCK;
-			if (r == SOCKET_ERROR) {
+			if (r == -1) {
 				if (errno != EINPROGRESS) throw client_connect_error();
 				fd_set set;
 			redo:
