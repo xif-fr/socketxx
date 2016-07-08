@@ -20,15 +20,15 @@ namespace socketxx { namespace end {
 			#endif
 			}
 			r = ::bind(sock, addr, (socklen_t)addrlen);
-			if (r == -1) throw server_launch_error(server_launch_error::BIND);
+			if (r == -1) throw server_launch_error(server_launch_error::BIND_ERR);
 			r = ::listen(sock, (int)listen_max);
-			if (r == -1) throw server_launch_error(server_launch_error::LISTEN);
+			if (r == -1) throw server_launch_error(server_launch_error::LISTEN_ERR);
 		}
 		
 			// Warper for accept() : return the new client's socket
 		socket_t _server_accept (socket_t sock, sockaddr* addr, socklen_t* addrlen) {
 			socket_t cli_sock = ::accept(sock, addr, addrlen);
-			if (cli_sock == -1) throw server_accept_error();
+			if (cli_sock == -1) throw server_pool_error(server_pool_error::ACCEPT_ERR);
 			return cli_sock;
 		}
 		
@@ -56,7 +56,7 @@ namespace socketxx { namespace end {
 			r_sel = ::select(maxfd, &select_set, NULL, NULL, (timeout==NULL_TIMEVAL)?NULL:&timeout);
 			if (r_sel == -1) {
 				if (errno == EINTR && ignsig) goto select_redo;
-				throw server_select_error();
+				throw server_pool_error(server_pool_error::SELECT_ERR);
 			}
 			if (r_sel == 0) throw socketxx::timeout_event();
 			if (fd2 != SOCKETXX_INVALID_HANDLE and FD_ISSET(fd2, &select_set)) {
@@ -81,7 +81,7 @@ namespace socketxx { namespace end {
 			r_sel = ::select(maxfd+1, &select_set, NULL, NULL, (timeout==NULL_TIMEVAL)?NULL:&timeout);
 			if (r_sel == -1) {
 				if (errno == EINTR && ignsig) goto select_redo;
-				throw server_select_error();
+				throw server_pool_error(server_pool_error::SELECT_ERR);
 			}
 			if (r_sel == 0) throw socketxx::timeout_event();
 			for (fd_t fd_monitor : fds) {
@@ -102,23 +102,34 @@ namespace socketxx { namespace end {
 			r_sel = ::select(maxfd+1, set, NULL, NULL, (tm==NULL_TIMEVAL)?NULL:&tm);
 			if (r_sel == -1) {
 				if (errno == EINTR) goto select_redo;
-				throw server_select_error();
+				throw server_pool_error(server_pool_error::SELECT_ERR);
 			}
 			if (r_sel == 0) throw socketxx::timeout_event();
 			return (uint)r_sel;
 		}
 		
+		const std::logic_error bad_state("socket server : Bad listening state");
+		
 	}
 	
 		/** -------------- Exceptions -------------- **/
 	
-	std::string server_launch_error::_str (_type type) noexcept {
-		std::string descr;
+	std::string server_launch_error::descr() const {
+		std::string descr = "socket server : ";
 		switch (type) {
-			case BIND: descr = "Port binding"; break;
-			case LISTEN: descr = "Listening"; break;
+			case BIND_ERR: descr += "Port/address binding"; break;
+			case LISTEN_ERR: descr += "Listening"; break;
 		}
-		descr += " error while starting socket server";
+		descr += " failed";
+		return descr;
+	}
+	
+	std::string server_pool_error::descr() const {
+		std::string descr = "socket server pooling : ";
+		switch (type) {
+			case SELECT_ERR: descr += "select() error"; break;
+			case ACCEPT_ERR: descr += "accept() error"; break;
+		}
 		return descr;
 	}
 	

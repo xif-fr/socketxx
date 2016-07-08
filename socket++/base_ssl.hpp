@@ -18,20 +18,24 @@ struct _socketxx_openssl_init {
 namespace socketxx {
 
 		// OpenSSL exception
-	class ssl_error : public socketxx::error {
+	class ssl_error : virtual public socketxx::error {
 	public:
 		enum _type { READ = 0, WRITE = 1, START, STOP } t;
 		SSL* ssl_sock;
-		int ssl_r;
-		ssl_error (_type t, SSL* sockssl = NULL, int ret = -1) noexcept : t(t), ssl_sock(sockssl), ssl_r(ret), error(_str(t,sockssl,ret)) {}
-	private:
-		static std::string _str (_type, SSL*, int) noexcept;
+		int ssl_r, std_errno;
+		ssl_error (_type t, SSL* sockssl = NULL, int ret = -1) noexcept : error(), t(t), ssl_sock(sockssl), ssl_r(ret), std_errno(errno) {}
+		virtual ~ssl_error() noexcept {}
+	protected:
+		virtual std::string descr () const;
 	};
 	
-		// IO SSL error (can be caught as io_error or ssl_error)
+		// I/O OpenSSL error (can be caught as io_error or ssl_error)
 	class io_ssl_error : public io_error, public ssl_error {
 	public:
-		io_ssl_error(io_error::_type t, SSL* sockssl, int ret) throw() : io_error(t, ret), ssl_error((ssl_error::_type)t, sockssl, ret) { }
+		io_ssl_error(io_error::_type t, SSL* sockssl, int ret) noexcept : io_error(t, ret), ssl_error((ssl_error::_type)t, sockssl, ret) {}
+		virtual ~io_ssl_error() noexcept {}
+	protected:
+		virtual std::string descr () const { return this->ssl_error::descr(); }
 	};
 	
 		///------ Base class for SSL-enabled sockets ------///

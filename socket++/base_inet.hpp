@@ -21,7 +21,10 @@ namespace socketxx {
 	class dns_resolve_error : public socketxx::classic_error {
 	public:
 		const char* const failed_hostname;
-		dns_resolve_error(const char* host) noexcept : classic_error("Hostname resolving error",errno), failed_hostname(host) { errno_reset; }
+		dns_resolve_error (const char* host) noexcept : classic_error(), failed_hostname(host) {}
+		virtual ~dns_resolve_error() noexcept {}
+	protected:
+		virtual std::string descr () const;
 	};
 	
 		///------ Base class for internet TCP IPv4 sockets ------///
@@ -100,13 +103,13 @@ namespace socketxx {
 		err_type _t;
 	public:
 		bad_addr_error (err_type t) noexcept : _t(t), socketxx::error("Bad address") {}
-		bad_addr_error (err_type t, std::string descr) noexcept : _t(t), socketxx::error(descr) {}
+		bad_addr_error (err_type t, const char* what) noexcept : _t(t), socketxx::error(what) {}
 	};
 	
 	// Convert IP from string format to binary format
 	in_addr inline IP (const char* ip) {
 		in_addr addr;
-		if (::inet_pton(AF_INET, ip, &addr) != 1) throw socketxx::bad_addr_error(bad_addr_error::BAD_IP, "Bad litteral IP addr");
+		if (::inet_pton(AF_INET, ip, &addr) != 1) throw socketxx::bad_addr_error(bad_addr_error::BAD_IP, "Bad litteral IPv4 addr");
 		return addr;
 	}
 	in6_addr inline IPv6 (const char* ipv6) {

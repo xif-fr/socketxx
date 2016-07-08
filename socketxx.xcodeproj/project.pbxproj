@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02851D3E1D2FC05A00E9E19C /* defs.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 02851D3D1D2FC05A00E9E19C /* defs.hpp */; };
 		AA560B1A186E20BE00769F90 /* base_io.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA560B12186E20BE00769F90 /* base_io.cpp */; };
 		AA560B1B186E20BE00769F90 /* base_io.hpp in Headers */ = {isa = PBXBuildFile; fileRef = AA560B13186E20BE00769F90 /* base_io.hpp */; };
 		AA9094B918F72C8700A09CDA /* quickdefs.h in Headers */ = {isa = PBXBuildFile; fileRef = AA9094B818F72C8700A09CDA /* quickdefs.h */; };
@@ -29,6 +30,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		02851D3D1D2FC05A00E9E19C /* defs.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = defs.hpp; path = "socket++/defs.hpp"; sourceTree = "<group>"; };
 		AA560B05186E204000769F90 /* libsocketxx.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libsocketxx.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA560B12186E20BE00769F90 /* base_io.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = base_io.cpp; path = "socket++/base_io.cpp"; sourceTree = "<group>"; };
 		AA560B13186E20BE00769F90 /* base_io.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = base_io.hpp; path = "socket++/base_io.hpp"; sourceTree = "<group>"; };
@@ -116,6 +118,7 @@
 		AA560B22186E20E400769F90 /* Base */ = {
 			isa = PBXGroup;
 			children = (
+				02851D3D1D2FC05A00E9E19C /* defs.hpp */,
 				AA560B13186E20BE00769F90 /* base_io.hpp */,
 				AA560B12186E20BE00769F90 /* base_io.cpp */,
 				AACF8BB918F88F660014AF0A /* base_unixsock.hpp */,
@@ -193,6 +196,7 @@
 			files = (
 				AA560B1B186E20BE00769F90 /* base_io.hpp in Headers */,
 				AAB6A05B1885D96C00D92C77 /* base_ssl.hpp in Headers */,
+				02851D3E1D2FC05A00E9E19C /* defs.hpp in Headers */,
 				AAB6A0641885DD9900D92C77 /* socket_client.hpp in Headers */,
 				AAB6A0661885DD9900D92C77 /* socket_server.hpp in Headers */,
 				AAE072DA188E9C49009A447F /* simple_socket.hpp in Headers */,

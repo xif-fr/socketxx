@@ -7,11 +7,8 @@
 	// General headers
 #include <list>
 #include <vector>
-#ifndef XIF_NO_CXX11_STL
-	#include <functional>
-#elif !defined(XIF_NO_STD_FUNCTION)
-	#define XIF_NO_STD_FUNCTION
-#endif
+#include <functional>
+#include <stdexcept>
 
 	// Threads
 #ifndef XIF_NO_THREADS
@@ -33,32 +30,25 @@ namespace socketxx {
 		// Error during server launching (reuse port, bind or listen)
 	class server_launch_error : public socketxx::classic_error {
 	public:
-		enum _type { BIND, LISTEN } type;
-		server_launch_error(_type t) throw() : type(t), socketxx::classic_error(_str(t),errno) { errno_reset; }
-	private:
-		static std::string _str (_type) noexcept;
+		enum _type { BIND_ERR, LISTEN_ERR } type;
+		server_launch_error(_type t) noexcept : type(t), classic_error() {}
+	protected:
+		virtual std::string descr () const;
 	};
-		// select() error or timeout
-	class server_select_error : public socketxx::classic_error {
+		// accept()/select() error
+	class server_pool_error : public socketxx::classic_error {
 	public:
-		server_select_error() noexcept : classic_error("Server select() error during client activity waiting",errno) { errno_reset; }
-	};
-		// accept() error
-	class server_accept_error : public socketxx::classic_error {
-	public:
-		server_accept_error() noexcept : classic_error("Server accept() error",errno) { errno_reset; }
-	};
-		// bad listening state
-	class server_listening_state : public socketxx::error {
-	public:
-		server_listening_state() noexcept : socketxx::error("bad server listening state") { };
+		enum _type { SELECT_ERR, ACCEPT_ERR } type;
+		server_pool_error(_type t) noexcept : type(t), classic_error() {}
+	protected:
+		virtual std::string descr () const;
 	};
 	
 #ifndef XIF_NO_THREADS
 	struct server_thread_data { void* _c; };
 #endif
 	
-		/// Private functions
+		/// Implementation methods
 	namespace _socket_server {
 		
 			// Start listening state : create, bind, and put in listening state
@@ -74,6 +64,9 @@ namespace socketxx {
 		void _select_throw_stop (fd_t fd1, fd_t fd2, timeval timeout, bool ignsig); // Return on `fd1` activity, throw a `stop_exception` on `fd2` activity (fd2 priority)
 		void _select_throw_stop (fd_t fd1, std::vector<fd_t>& fds, timeval timeout, bool ignsig); // Throw a `stop_exception` on any fd activity in `fds` (first fd in `fds` priority)
 		uint _select (int maxsock, fd_set* set, timeval timeout); // Simple and transparent warper for select
+		
+			// Listening state exception
+		extern const std::logic_error bad_state;
 	}
 	
 	/***** Server-side (incoming) socket handler *****
@@ -170,7 +163,7 @@ namespace socketxx {
 #ifndef XIF_NO_STD_FUNCTION
 		typedef std::function<pool_ret_t(client)> cli_callback_t;
 		typedef std::function<pool_ret_t(fd_t)> fd_callback_t;
-#else // For those who haven't a complete C++11 library
+#else
 		typedef pool_ret_t (*cli_callback_t) (client);
 		typedef pool_ret_t (*fd_callback_t) (fd_t);
 #endif
@@ -194,7 +187,7 @@ namespace socketxx {
 			// Server listen infos
 		typename socket_base::addr_info listen_addr;
 		bool listening;
-		inline void chkl () { if (listening == false) throw server_listening_state(); }
+		inline void chkl () { if (listening == false) throw _socket_server::bad_state; }
 		
 			// Timeout
 		timeval pool_timeout;
@@ -208,21 +201,21 @@ namespace socketxx {
 		
 			// Start (with the same address) and stop (release the port) listening for new clients
 		void listening_start (uint listen_max, bool reuse) {
-			if (listening == true) throw server_listening_state();
+			if (listening == true) throw _socket_server::bad_state;
 			auto _addr = listen_addr._getaddr();
 			_addr.use(_addr_use_type_t::SERVER, *this);
 			_socket_server::_server_launch(socket_base::fd, (const sockaddr*)&_addr.addr, _addr.len, listen_max, reuse);
 			listening = true;
 		}
 		void listening_stop () {
-			if (listening == false) throw server_listening_state();
+			if (listening == false) throw _socket_server::bad_state;
 			listen_addr._getaddr().unuse(_addr_use_type_t::SERVER, *this);
 			socket_base::fd_close();
 			listening = false;
 		}
 		
 			// Constructor : set up the server
-			// Take the addr struct for binding, the pending client queue for accepting (you can use SOMAXCONN if defined)
+			// Take the addr struct for binding, the pending client queue for accepting (SOMAXCONN can be used if defined)
 		socket_server (typename socket_base::addr_info addr, uint listen_max, bool reuse = false) : socket_base(), listen_addr(addr), listening(false), pool_timeout(NULL_TIMEVAL) {
 			this->listening_start(listen_max, reuse);
 		}
@@ -278,7 +271,7 @@ namespace socketxx {
 		void set_pool_timeout (timeval timeout) { pool_timeout = timeout; }
 		
 	};
-		
+	
 		///--- Implementations ---///
 	
 	template <typename socket_base, typename D>
@@ -290,7 +283,7 @@ namespace socketxx {
 			if (FD_ISSET(it->fd, &s)) 
 				return it;
 	}
-		
+	
 	template <typename socket_base, typename D>
 	void socket_server<socket_base,D>::wait_activity_loop (cli_callback_t client_activity) {
 		chkl();
@@ -335,8 +328,6 @@ namespace socketxx {
 			}
 		}
 	}
-	
-#ifndef _WIN32
 	
 	template <typename socket_base, typename D>
 	void socket_server<socket_base,D>::wait_activity_loop (cli_callback_t client_activity, cli_callback_t new_client, const std::vector<fd_t>& fds, fd_callback_t fd_activity) {
@@ -406,8 +397,6 @@ namespace socketxx {
 		}
 	}
 	
-#endif /*_WIN32*/
-
 }}
 
 #endif

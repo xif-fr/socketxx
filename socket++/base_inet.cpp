@@ -3,6 +3,7 @@
 	// General headers
 #include <string.h>
 #include <xifutils/intstr.hpp>
+#include <sstream>
 
 	// OS headers
 #include <netdb.h>
@@ -22,6 +23,12 @@ namespace socketxx {
 		if (host_struct->h_addr_list[0] == NULL) throw dns_resolve_error(hostname);
 		in_addr ip_addr = (*((in_addr**)host_struct->h_addr_list)[0]);
 		return ip_addr;
+	}
+	
+	std::string dns_resolve_error::descr () const {
+		std::ostringstream descr;
+		descr << "Failed to resolve hostname '" << failed_hostname << "'" << this->classic_error::errno_str();
+		return descr.str();
 	}
 	
 	inline sockaddr_in _build_ipsock_addr (in_port_t port, in_addr ip) {

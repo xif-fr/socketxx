@@ -209,32 +209,29 @@ namespace socketxx {
 		/** -------------- Exceptions -------------- **/
 	
 		// Events
-	const char* socketxx::stop_event::what() const throw() {
+	const char* socketxx::stop_event::what() const noexcept {
 		return "socket++ event : interrupted blocking/waiting opperation by monitored file descriptor";
 	}
-	const char* socketxx::timeout_event::what() const throw() {
+	const char* socketxx::timeout_event::what() const noexcept {
 		return "socket++ timeout event";
 	}
-	
 		// POSIX call errno error
-	std::string socketxx::classic_error::_errno_str (int std_errno) noexcept {
+	std::string socketxx::classic_error::errno_str () const {
 		std::ostringstream descr;
 		descr << " : #" << std_errno << ' ' << ::strerror(std_errno);
 		return descr.str();
 	}
-	socketxx::classic_error::~classic_error() noexcept {}
-	
 		// I/O error
-	std::string socketxx::io_error::_str(_type t, int ret) noexcept {
+	std::string socketxx::io_error::descr () const {
 		std::ostringstream descr;
 		if (ret > 0) {
-			descr << "Incomplete " << (t==WRITE ? "write" : "read");
+			descr << "Incomplete " << (err_type==WRITE ? "write" : "read");
 		} else {
-			descr << "I/O error while " << (t==WRITE ? "writing" : "reading") << " data";
+			descr << "I/O error while " << (err_type==WRITE ? "writing" : "reading") << " data";
 			if (ret == 0)
 				descr << " : the connection is probably closed";
 			else
-				descr << classic_error::_errno_str(errno);
+				descr << this->classic_error::errno_str();
 		}
 		return descr.str();
 	}

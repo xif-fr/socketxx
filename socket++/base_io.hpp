@@ -74,51 +74,17 @@
 #ifndef SOCKET_XX_BASE_H
 #define SOCKET_XX_BASE_H
 
-	// Config header
-#ifdef HAVE_CONFIG_H
-	#include <config.h>
-#endif
+	// Global definitions :
+/* - fd_t, socket_t
+ * - endianness
+ * - socketxx::auto_bdata
+ * - socketxx::flags
+ * - socketxx::event,error exceptions */
+#include <socket++/defs.hpp>
 
 	// OS headers
-#include <errno.h>
-#define errno_reset errno=0
-#include <string>
-#include <exception>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/time.h>
-typedef int fd_t;
-typedef fd_t socket_t;
-#define SOCKETXX_INVALID_HANDLE -1
-
-	// Endianness
-// Define endianness (from Autoconf's WORDS_BIGENDIAN or system defs)
-#define XIF_SOCKETXX_BIG_ENDIAN 1
-#define XIF_SOCKETXX_LITTLE_ENDIAN 0
-#ifdef CONFIG_H_INCLUDED
-	#ifdef WORDS_BIGENDIAN
-		#define XIF_SOCKETXX_ENDIANNESS XIF_SOCKETXX_BIG_ENDIAN
-	#else
-		#define XIF_SOCKETXX_ENDIANNESS XIF_SOCKETXX_LITTLE_ENDIAN
-	#endif
-#else
-	#ifndef XIF_SOCKETXX_ENDIANNESS
-		#warning TO DO : Endianness without Autoconf's WORDS_BIGENDIAN
-	#endif
-#endif
-// Endianness priority. /!\WARNING/!\ If socket++ is build with big-endian priority, integer routines
-//  will not be compatible with little-endian socket++ builds. Change this only for an isolated network system.
-#define XIF_SOCKETXX_ENDIANNESS_PRIORITY XIF_SOCKETXX_LITTLE_ENDIAN  // Little endian priority (Intel rules the world)
-#define XIF_SOCKETXX_ENDIANNESS_SAME XIF_SOCKETXX_ENDIANNESS_PRIORITY != XIF_SOCKETXX_ENDIANNESS
-
-	// Reference counting
-#include <xifutils/refcount++.hpp>
-
-// Timeval comparing
-inline bool operator== (timeval first, timeval second) { return (first.tv_sec == second.tv_sec) && (first.tv_usec == second.tv_usec); }
-inline bool operator!= (timeval first, timeval second) { return !(first == second); }
-// Timeval 0
-#define NULL_TIMEVAL timeval({0,0})
+#include <string>
 
 namespace socketxx {
 	
@@ -129,42 +95,8 @@ namespace socketxx {
 		CLIENT,
 	};
 	
-		// Autodelete binary data buffer, can be usefull
-	struct auto_bdata : public refcountxx_base {
-		void* p;
-		size_t len;
-		auto_bdata () : p(NULL), len(0) {}
-		auto_bdata (void* p) : p(p) {}
-		auto_bdata (const auto_bdata& o) : refcountxx_base(o), p(o.p), len(o.len) {}
-		~auto_bdata() { if (this->can_destruct() and p != NULL) { delete[] (unsigned char*)p; } }
-	};
-	
-		// Simple flags helper for adding or clearing flags
-	class flags {
-	protected:
-		virtual int get () const = 0;
-		virtual void set (int) = 0;
-		virtual ~flags() {};
-		#define _SOCKETXX_FLAGS_COMMON(class) protected: virtual int get () const; virtual void set (int); public: virtual ~class();
-	public:
-		flags& operator+= (int flag) { (*this) |= flag; return *this; }
-		flags& operator-= (int flag) { (*this) &= ~flag; return *this; }
-		flags& operator&= (int flags) { int f = this->get(); f &= flags; this->set(f); return *this; }
-		flags& operator|= (int flags) { int f = this->get(); f |= flags; this->set(f); return *this; }
-		flags& operator= (int flags) { this->set(flags); return *this; }
-		bool operator& (int flag) const { int f = this->get(); return f & flag; }
-	};
-	
-		///// Event Exceptions /////
-	
-		// Generic socket++ event exception
-	class event : public std::exception {
-	public:
-		event () noexcept : std::exception() {}
-		virtual const char* what() const noexcept = 0;
-		virtual ~event () noexcept {};
-	};
-	
+	/** ------ Event Exceptions ------ **/
+		
 		// Stop exception (synchronous I/O or waiting opperation interrupted by a monitored file descriptor)
 	class stop_event : socketxx::event {
 		fd_t _awaked_fd;
@@ -181,47 +113,44 @@ namespace socketxx {
 		virtual const char* what() const noexcept;
 	};
 	
-		///// Error Exceptions /////
-	
-		// Generic socket++ error exception
-	class error : public std::exception {
-	protected:
-		std::string descr;
-		error (std::string descr) noexcept : descr(descr) {}
-	public:
-		explicit error (const char* descr) noexcept : descr(descr) {}
-		virtual const char* what () const noexcept { return descr.c_str(); }
-		virtual ~error() noexcept {}
-	};
+	/** ------ Error Exceptions ------ **/
 	
 		// Generic classic system or socket exception, using `errno`
-	class classic_error : public socketxx::error {
-	protected:
-		int std_errno;
-		static std::string _errno_str (int std_errno) noexcept;
-		classic_error (std::string descr, int err) noexcept : error(descr+_errno_str(err)), std_errno(err) {}
+	class classic_error : virtual public socketxx::error {
 	public:
-		int get_errno () const { return std_errno; }
-		virtual ~classic_error() noexcept;
+		int std_errno;
+	protected:
+		virtual std::string descr () const = 0;
+		std::string errno_str () const;
+		classic_error (int err) noexcept : error(), std_errno(err) {}
+		explicit classic_error () noexcept : error(), std_errno(errno) {}
+	public:
+		virtual ~classic_error() noexcept { errno_reset; }
 	};
 	
 		// In-Out socket exception
-	class io_error : public socketxx::classic_error {
+	class io_error : virtual public socketxx::classic_error {
 	public:
 		enum _type { READ = 0, WRITE = 1 } err_type;
 		int ret;
-		io_error (ssize_t ret, _type t) noexcept : err_type(t), ret((int)ret), classic_error(_str(t,ret), errno) { errno_reset; }  // For socket I/O
-		io_error (_type t, bool incompl_read = false) noexcept : err_type(t), ret((incompl_read)?1:-1), classic_error(_str(t,(incompl_read)?1:-1), errno) { errno_reset; }  // For non-socket I/O
-		bool is_connection_closed () const noexcept { return ret == 0; }	// `false` don't ensure that the connection is still opened !
+		io_error (ssize_t ret, _type t) noexcept : err_type(t), ret((int)ret), classic_error() {}  // For socket I/O
+		io_error (_type t, bool incompl_read = false) noexcept : err_type(t), ret((incompl_read)?1:-1), classic_error() {}  // For non-socket I/O
+		bool is_connection_closed () const noexcept { return ret == 0; }	// `false` do not ensure that the connection is still opened !
 		bool is_timeout_error () const noexcept { return std_errno == ETIMEDOUT; }
-	private:
-		static std::string _str (_type, int ret) noexcept; // uses errno
+	protected:
+		virtual std::string descr () const;
+	public:
+		virtual ~io_error() noexcept {}
 	};
 	
 		// Other socket or syscall error
 	class other_error : public socketxx::classic_error {
+	protected:
+		std::string _what;
+		virtual std::string descr () const { return _what + this->classic_error::errno_str(); }
 	public:
-		other_error(std::string what) noexcept : classic_error(what,errno) { errno_reset; }
+		other_error (std::string what) noexcept : classic_error(), _what(what) {}
+		virtual ~other_error() noexcept {}
 	};
 	
 		///-------------------------------------------------///
@@ -307,7 +236,7 @@ namespace socketxx {
 		///----------------------------------///
 		///------ Base class for pipes ------///
 	
-	#warning TO DO : Template class read/write mode, IO types have to be updated for
+/*	#warning TO DO : Template class read/write mode, IO types have to be updated for*/
 	namespace _base_pipe {
 		const socketxx::error badend_w = socketxx::error("pipe end not writable"), badend_r = socketxx::error("pipe end not readable");
 		void _i_pipe (fd_t fd, const void* d, size_t len, timeval tm);

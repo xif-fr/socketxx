@@ -14,9 +14,7 @@ namespace socketxx {
 	
 	/************* BaseSSL Implementation *************/
 	
-		/// OpenSSL error
-
-	std::string socketxx::ssl_error::_str(_type t, SSL* ssl_sock, int ssl_r) noexcept {
+	std::string socketxx::ssl_error::descr() const {
 		std::ostringstream descr;
 		const char* when = NULL;
 		switch (t) {
@@ -26,30 +24,30 @@ namespace socketxx {
 			case STOP: when = "stopping SSL mode"; break;
 		}
 		if (ssl_sock == NULL) {
-			descr << "SSL error during " << when;
+			descr << "SSL error while " << when;
 		} else {
 			int ssl_error = SSL_get_error(ssl_sock, ssl_r);
 			if (ssl_error == SSL_ERROR_SSL) 
-				descr << "Internal OpenSSL error during " << when;
+				descr << "Internal OpenSSL error while " << when;
 			else if (ssl_error == SSL_ERROR_SYSCALL) 
-				descr << "Underlying Socket error in SSL during " << when;
+				descr << "SSL underlying socket error while " << when;
 			else if (ssl_error == SSL_ERROR_WANT_READ || ssl_error ==  SSL_ERROR_WANT_WRITE) 
-				descr << "IO SSL socket error (EWOULDBLOCK) during " << when;
+				descr << "IO SSL socket error (EWOULDBLOCK) while " << when;
 			else if (ssl_error == SSL_ERROR_WANT_CONNECT || ssl_error ==  SSL_ERROR_WANT_ACCEPT) 
-				descr << "SSL handshake error during " << when;
+				descr << "SSL handshake error while " << when;
 			else if (ssl_error == SSL_ERROR_ZERO_RETURN) 
-				descr << "SSL bad connection during " << when;
+				descr << "SSL bad connection while " << when;
 			else 
-				descr << "SSL error during " << when;
+				descr << "SSL error while " << when;
 		}
 		unsigned long err_error = ERR_get_error();
 		if (err_error == 0) {
 			if (ssl_r == -1)
-				descr << " ! 0 = Underlying socket error = " << errno << " = " << strerror(errno);
+				descr << " : Underlying socket error : #" << std_errno << " " << strerror(std_errno);
 			else 
-				descr << " ! (an EOF was observed that violates the SSL protocol)";
+				descr << " : EOF observed";
 		} else {
-			descr << " ! " << err_error << " = " << ERR_reason_error_string(err_error) << " (in " << ERR_func_error_string(err_error) << ")";
+			descr << " : " << err_error << " = " << ERR_reason_error_string(err_error) << " (in " << ERR_func_error_string(err_error) << ")";
 			while ((err_error = ERR_get_error()) != 0) 
 				descr << " > " << err_error << " = " << ERR_reason_error_string(err_error) << " (in " << ERR_func_error_string(err_error) << ")";
 		}

@@ -1,4 +1,4 @@
-AC_INIT([socket++], [3.10], [xcodexif@xif.fr], [socket++], [http://dev.xif.fr/socketxx])
+AC_INIT([socket++], [3.10], [xcodexif@xif.fr], [socket++], [http://dev.xif.fr:7979/socketxx])
 AM_INIT_AUTOMAKE([foreign -Wall])
 AC_CONFIG_HEADERS([socket++/config.h])
 AC_CONFIG_SRCDIR([socket++/base_io.cpp])
@@ -24,19 +24,9 @@ PKGCONFIG_ADD_DEP=""
 
 AC_DEFINE([CONFIG_H_INCLUDED], [1], [config.h included])
 
-# C++11 Standard Library
-AC_ARG_ENABLE([cxx11-stdlib],
-	[AS_HELP_STRING([--disable-cxx11-stdlib], [Don't use C++11 Standard Library features, like <fonctional> features])],
-	[],
-	[enable_cxx11_stdlib=yes]
-)
-AS_IF([test "x$enable_cxx11_stdlib" != xyes],
-	[AC_DEFINE([XIF_NO_CXX11_STL], [1], [Disable C++11 Standard Library features])]
-)
-
 # Threads
 AC_ARG_ENABLE([threads],
-	[AS_HELP_STRING([--disable-threads], [Don't use threads features, like creating threads for socket server's client])],
+	[AS_HELP_STRING([--disable-threads], [Don't use threads features, as client threads for socket_server])],
 	[],
 	[enable_threads=yes]
 )
@@ -59,8 +49,8 @@ AS_IF([test "x$enable_threads" != xyes],
 
 # SSL/TLS Libraries
 AC_ARG_WITH([openssl],
-	[AS_HELP_STRING([--with-openssl], [add support for SSL/TLS encryption using OpenSSL library])],
-	[],
+	[AS_HELP_STRING([--without-openssl], [remove support for TLS encryption and checksums using OpenSSL (or compatible) library])],
+	[with_openssl=no],
 	[with_openssl=yes]
 )
 if test "x$with_openssl" != xno ; then

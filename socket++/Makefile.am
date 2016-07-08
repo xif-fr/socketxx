@@ -5,7 +5,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 lib_LTLIBRARIES = libsocketxx.la
 libsocketxx_includedir = $(includedir)/socket++
-libsocketxx_include_HEADERS = base_io.hpp base_unixsock.hpp base_inet.hpp quickdefs.h
+libsocketxx_include_HEADERS = defs.hpp base_io.hpp base_unixsock.hpp base_inet.hpp quickdefs.h
 libsocketxx_la_SOURCES = base_io.cpp base_unixsock.cpp base_inet.cpp
 if SOCKETXX_ENABLE_SSL
 libsocketxx_include_HEADERS += base_ssl.hpp 
