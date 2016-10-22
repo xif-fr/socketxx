@@ -91,7 +91,7 @@ namespace socketxx { namespace io {
 		void o_char (char byte)                             { io_base::_o(&byte, 1); }
 		void o_bool (bool b)                                { io_base::_o(&b, 1); }
 		void o_str (const std::string& str);
-		template <typename int_t> void o_int (int_t num)    { if (XIF_SOCKETXX_ENDIANNESS_SAME) { _simple_socket::swapBytes(&num, sizeof(int_t)); } io_base::_o(&num, sizeof(int_t)); }
+		template <typename int_t> void o_int (int_t num)    { if (not XIF_SOCKETXX_ENDIANNESS_SAME) { _simple_socket::swapBytes(&num, sizeof(int_t)); } io_base::_o(&num, sizeof(int_t)); }
 		void o_float (double f)                             { this->o_int<int64_t>(*((int64_t*)&f)); }
 		void o_file (fd_t file_r, size_t file_size, _simple_socket::trsf_info_f = NULL);
 		void o_file (const char* path, _simple_socket::trsf_info_f = NULL);

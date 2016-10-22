@@ -34,8 +34,8 @@ typedef fd_t socket_t;
 #endif
 // Endianness priority. /!\WARNING/!\ If socket++ is build with big-endian priority, integer routines
 //  will not be compatible with little-endian socket++ builds. Change this only for an isolated network system.
-#define XIF_SOCKETXX_ENDIANNESS_PRIORITY XIF_SOCKETXX_LITTLE_ENDIAN  // Little endian priority (Intel rules the world)
-#define XIF_SOCKETXX_ENDIANNESS_SAME XIF_SOCKETXX_ENDIANNESS_PRIORITY != XIF_SOCKETXX_ENDIANNESS
+#define XIF_SOCKETXX_ENDIANNESS_PRIORITY XIF_SOCKETXX_LITTLE_ENDIAN  // Little endian priority (x86 still rules the world)
+#define XIF_SOCKETXX_ENDIANNESS_SAME (XIF_SOCKETXX_ENDIANNESS_PRIORITY == XIF_SOCKETXX_ENDIANNESS)
 
 	// Reference counting
 #include <xifutils/refcount++.hpp>
@@ -77,6 +77,8 @@ namespace socketxx {
 		flags& operator= (int flags) { this->set(flags); return *this; }
 		bool operator& (int flag) const { int f = this->get(); return f & flag; }
 	};
+	
+	enum rw_t { READ, WRITE };
 	
 	/** ------ Exceptions ------ **/
 	

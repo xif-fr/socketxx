@@ -133,10 +133,10 @@ namespace socketxx {
 	public:
 		enum _type { READ = 0, WRITE = 1 } err_type;
 		int ret;
-		io_error (ssize_t ret, _type t) noexcept : err_type(t), ret((int)ret), classic_error() {}  // For socket I/O
-		io_error (_type t, bool incompl_read = false) noexcept : err_type(t), ret((incompl_read)?1:-1), classic_error() {}  // For non-socket I/O
+		io_error (ssize_t ret, _type t) noexcept : err_type(t), ret((int)ret), classic_error() {}  // For read/write ops
+		io_error (_type t) noexcept : err_type(t), ret(-1), classic_error() {}
 		bool is_connection_closed () const noexcept { return ret == 0; }	// `false` do not ensure that the connection is still opened !
-		bool is_timeout_error () const noexcept { return std_errno == ETIMEDOUT; }
+		bool is_timeout_error () const noexcept { return std_errno == ETIMEDOUT or std_errno == EAGAIN; }
 	protected:
 		virtual std::string descr () const;
 	public:
@@ -226,7 +226,7 @@ namespace socketxx {
 		
 			// Read
 		size_t _i (void* d, size_t maxlen); // Normal read : read data's size is not guaranteed (min 1, max maxlen)
-		void _i_fixsize (void* d, size_t len); // Strict read : returns only if [len] data is read (can block for a very long time : timeout is not strict, it _can_ be reseted each time data is received; use various methods)
+		void _i_fixsize (void* d, size_t len); // Strict read : returns only if [len] data is read; timeout is _not_ strict, it is reset each time data is received
 		
 		public: struct _io_fncts { typedef size_t (socketxx::base_fd::* i_fnct) (void *, size_t); typedef void (socketxx::base_fd::* o_fnct) (const void *, size_t); i_fnct i; o_fnct o; };
 		protected: virtual _io_fncts _get_io_fncts () { return _io_fncts({ &base_fd::_i, &base_fd::_o }); }
@@ -236,18 +236,20 @@ namespace socketxx {
 		///----------------------------------///
 		///------ Base class for pipes ------///
 	
-/*	#warning TO DO : Template class read/write mode, IO types have to be updated for*/
+/* TO DO : Template class read/write mode, IO types have to be updated for */
+
 	namespace _base_pipe {
-		const socketxx::error badend_w = socketxx::error("pipe end not writable"), badend_r = socketxx::error("pipe end not readable");
-		void _i_pipe (fd_t fd, const void* d, size_t len, timeval tm);
-		void _ifix_pipe (fd_t fd, const void* d, size_t len, timeval tm);
+		extern const std::logic_error badend_w, badend_r;
+		void _pipe_select_wait (fd_t, timeval* tm);
+		size_t _i_pipe (fd_t, void* d, size_t maxlen, timeval tm);
+		void _ifix_pipe (fd_t, void* d, size_t len, timeval tm);
+		void _check_pipe (fd_t, rw_t);
 	}
-	template<bool write>
+	template <rw_t rw>
 	class base_pipe : public base_fd {
 	protected:
 		
 			// Private initialization
-		static void check_pipe (fd_t, bool w);
 		base_pipe (bool autoclose_handle, fd_t handle) : base_fd(autoclose_handle, handle) {}  // Don't forget to check file descriptor
 			// Default
 		base_pipe () = delete;
@@ -255,34 +257,36 @@ namespace socketxx {
 	public:
 		
 			// Public constructors with already created socket
-		base_pipe (fd_t handle, bool autoclose_handle) : base_fd(autoclose_handle, handle), timeout(NULL_TIMEVAL) { base_pipe::check_pipe(handle, write); }
+		base_pipe (fd_t handle, bool autoclose_handle) : base_fd(autoclose_handle, handle), timeout(NULL_TIMEVAL) { _base_pipe::_check_pipe(handle, rw); }
 			// Copy constuctor
-		base_pipe (const base_pipe<write>& other) : base_fd(other), timeout(other.timeout) {}
+		base_pipe (const base_pipe<rw>& other) : base_fd(other), timeout(other.timeout) {}
 			// Construct from base_fd
-		base_pipe (const base_fd& base) : base_fd(base), timeout(NULL_TIMEVAL) { base_pipe::check_pipe(this->fd, write); }
+		base_pipe (const base_fd& base) : base_fd(base), timeout(NULL_TIMEVAL) { _base_pipe::_check_pipe(this->fd, rw); }
 		
 			// Destructor
 		virtual ~base_pipe () {}
 		
 			// Timeout (modifications dot not spread across copies)
 		timeval timeout;
+		void set_read_timeout (timeval tm) { this->timeout = tm; }
+		timeval get_read_timeout () const { return timeout; }
 		
 		// Common I/O routines
 	protected:
 			// Send
 		void _o (const void* d, size_t len) {
-			if (not write) throw socketxx::error("pipe end not writable");
+			if (rw != rw_t::WRITE) throw _base_pipe::badend_w;
 			base_fd::_o(d, len);
 		}
 		void _o_flags (const void* d, size_t len, int) { _o(d, len); } // Not applicable for pipes
 		
 			// Read
 		size_t _i (void* d, size_t maxlen) {
-			if (not write) throw socketxx::error("pipe end not readable");
-			_base_pipe::_i_pipe(fd, d, maxlen, timeout);
+			if (rw != rw_t::READ) throw _base_pipe::badend_r;
+			return _base_pipe::_i_pipe(fd, d, maxlen, timeout);
 		}
-		void _i_fixsize (void* d, size_t len) {
-			if (not write) throw socketxx::error("pipe end not readable");
+		void _i_fixsize (void* d, size_t len) { // Strict read : returns only if [len] data is read; timeout _may not_ be strict, it can be reset each time data is received
+			if (rw != rw_t::READ) throw _base_pipe::badend_r;
 			_base_pipe::_ifix_pipe(fd, d, len, timeout);
 		}
 		
@@ -322,13 +326,13 @@ namespace socketxx {
 		socket_t get_fd () const { return fd; }
 		
 			// setsockopt() and getsockopt()
-		static int  _getopt_sock_int  (socket_t fd, int flag);
+		static void _setopt_sock      (socket_t fd, int flag, const void* d, size_t s);
 		static void _setopt_sock_bool (socket_t fd, int flag, bool b);
-		static void _setopt_sock      (socket_t fd, int flag, void* d, size_t s);
 		static size_t _getopt_sock    (socket_t fd, int flag, void* d, size_t s);
+		static int  _getopt_sock_int  (socket_t fd, int flag);
 /*		#warning TO DO (SOL_SOCKET level) : SO_NOSIGPIPE, SO_PRIORITY, SO_OOBINLINE, SO_KEEPALIVE, SO_MARK, SO_BINDTODEVICE ?, SO_RCVBUF, SO_RCVLOWAT+SO_SNDLOWAT (erm, 1 by default, which is right), SO_RCVTIMEO ofc, SO_SNDBUF, SO_TIMESTAMP ?*/
 		void set_read_timeout (timeval timeout);
-		timeval get_read_timeout ();
+		timeval get_read_timeout () const;
 		
 			// ioctl()
 /*		#warning TO DO : FIONREAD, SIOCSPGRP ?, SIOCGSTAMP ?, SIOCATMARK, FIONBIO (if not done by fcntl), http://www.linux-kheops.com/doc/man/manfr/man-html-0.9/man2/ioctl_list.2.html => see sockios.h section */	

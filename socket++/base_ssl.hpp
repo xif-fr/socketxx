@@ -32,7 +32,7 @@ namespace socketxx {
 		// I/O OpenSSL error (can be caught as io_error or ssl_error)
 	class io_ssl_error : public io_error, public ssl_error {
 	public:
-		io_ssl_error(io_error::_type t, SSL* sockssl, int ret) noexcept : io_error(t, ret), ssl_error((ssl_error::_type)t, sockssl, ret) {}
+		io_ssl_error(io_error::_type t, SSL* sockssl, int ret) noexcept : io_error(ret, t), ssl_error((ssl_error::_type)t, sockssl, ret) {}
 		virtual ~io_ssl_error() noexcept {}
 	protected:
 		virtual std::string descr () const { return this->ssl_error::descr(); }

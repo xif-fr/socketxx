@@ -10,7 +10,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/select.h>
 #include <fcntl.h>
+#include <time.h>
 
 namespace socketxx {
 	
@@ -53,33 +55,29 @@ namespace socketxx {
 		}
 	}
 	
-		/// Common I/O routines
-	
-		// Write
-	void base_fd::_o (const void* d, size_t len) { // Normal write
+	void base_fd::_o (const void* d, size_t len) {
 		ssize_t r;
 		r = ::write(fd, d, len);
-		if (r < (ssize_t)len) throw socketxx::io_error(io_error::WRITE, (r >= 0));
+		if (r != (ssize_t)len) throw socketxx::io_error(r, io_error::WRITE);
 	}
 	
-		// Read
-	size_t base_fd::_i (void* d, size_t maxlen) { // Normal read : read data's size is not guaranteed (min 1, max maxlen)
+	size_t base_fd::_i (void* d, size_t maxlen) {
 		ssize_t r;
 		r = ::read(fd, d, maxlen);
-		if (r < 1) throw socketxx::io_error(io_error::READ);
+		if (r <= 0) throw socketxx::io_error(r, io_error::READ);
 		return (size_t)r;
 	}
-	void base_fd::_i_fixsize (void* d, size_t len) { // Strict read : returns only if [len] data is read - timeout is not strict, it is be reseted each time data is received
+	void base_fd::_i_fixsize (void* d, size_t len) {
 		ssize_t r;
 		char* data = (char*)d;
 		r = ::read(fd, data, len);
-		if (r < 1) throw socketxx::io_error(io_error::READ);
+		if (r <= 0) throw socketxx::io_error(r, io_error::READ);
 		if ((size_t)r < len) {
 			size_t rest = len - (size_t)r;
 			data += r;
 			while (rest != 0) {
 				r = ::read(fd, data, len);
-				if (r < 1) throw socketxx::io_error(io_error::READ);
+				if (r <= 1) throw socketxx::io_error(r, io_error::READ);
 				data += r;
 				rest -= (size_t)r;
 			}
@@ -87,12 +85,57 @@ namespace socketxx {
 	}
 	
 		/** -------------- BasePipe Implementation -------------- **/
-
-	void _base_pipe::_i_pipe (fd_t fd, const void* d, size_t len, timeval tm) {
-		
+	
+	const std::logic_error _base_pipe::badend_w ("pipe end not writable");
+	const std::logic_error _base_pipe::badend_r ("pipe end not readable");
+	
+	void _base_pipe::_check_pipe (fd_t fd, rw_t rw) {
+		struct stat statbuf;
+		if (::fstat(fd, &statbuf) == -1)
+			throw socketxx::other_error("Error querying file descriptor type with fstat()");
+		mode_t fd_mode = statbuf.st_mode;
+		if (not S_ISFIFO(fd_mode))
+			throw socketxx::error("File descriptor is not a pipe");
+		if ((fd_mode & S_IRUSR) != (rw == rw_t::READ))
+			throw socketxx::error("Pipe end mode incompatible with specified rw_t");
 	}
-	void _base_pipe::_ifix_pipe (fd_t fd, const void* d, size_t len, timeval tm) {
-		
+	
+	void _base_pipe::_pipe_select_wait (fd_t fd, timeval* tm) {
+		if (*tm == NULL_TIMEVAL) return;
+		fd_set select_set;
+		int r_sel;
+	select_redo:
+		FD_ZERO(&select_set);
+		FD_SET(fd, &select_set);
+		r_sel = ::select(fd+1, &select_set, NULL, NULL, tm);
+		if (r_sel == -1) {
+			if (errno == EINTR) goto select_redo;
+			throw socketxx::io_error(-1, io_error::READ);
+		}
+		if (r_sel == 0) {
+			errno = ETIMEDOUT;
+			throw socketxx::io_error(-1, io_error::READ);
+		}
+		return;
+	}
+	
+	size_t _base_pipe::_i_pipe (fd_t fd, void* d, size_t maxlen, timeval tm) {
+		_base_pipe::_pipe_select_wait(fd, &tm);
+		ssize_t r;
+		r = ::read(fd, d, maxlen);
+		if (r <= 0) throw socketxx::io_error(r, io_error::READ);
+		return (size_t)r;
+	}
+	void _base_pipe::_ifix_pipe (fd_t fd, void* d, size_t len, timeval tm) {
+		ssize_t r;
+		char* data = (char*)d;
+		while (len != 0) {
+			_base_pipe::_pipe_select_wait(fd, &tm);
+			r = ::read(fd, data, len);
+			if (r <= 0) throw socketxx::io_error(r, io_error::READ);
+			data += r;
+			len -= (size_t)r;
+		}
 	}
 	
 		/** -------------- BaseSocket Implementation -------------- **/
@@ -114,7 +157,6 @@ namespace socketxx {
 		if (shd->autoclose and fd != SOCKETXX_INVALID_HANDLE) {
 			if (not shd->preserve_fd) {
 				::shutdown(fd, SHUT_RDWR);
-				#warning TO DO : SO_LINGER
 			}
 			::close(fd);
 			fd = SOCKETXX_INVALID_HANDLE;
@@ -145,7 +187,7 @@ namespace socketxx {
 		int r = ::setsockopt(fd, SOL_SOCKET, flag, (void*)&set, (socklen_t)sizeof(int));
 		if (r == -1) throw socketxx::other_error("setsockopt() error");
 	}
-	void base_socket::_setopt_sock (socket_t fd, int flag, void* d, size_t s) {
+	void base_socket::_setopt_sock (socket_t fd, int flag, const void* d, size_t s) {
 		int r = ::setsockopt(fd, SOL_SOCKET, flag, d, (socklen_t)s);
 		if (r == -1) throw socketxx::other_error("setsockopt() error");
 	}
@@ -154,7 +196,7 @@ namespace socketxx {
 	void base_socket::set_read_timeout (timeval timeout) {
 		this->_setopt_sock(fd, SO_RCVTIMEO, &timeout, sizeof(timeval));
 	}
-	timeval base_socket::get_read_timeout () {
+	timeval base_socket::get_read_timeout () const {
 		timeval tm = NULL_TIMEVAL;
 		this->_getopt_sock(fd, SO_RCVTIMEO, &tm, sizeof(timeval));
 		return tm;
