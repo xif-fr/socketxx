@@ -41,6 +41,19 @@ namespace socketxx {
 		return (fd_type & S_IFMT); // Returns only the fd type part of fd mode
 	}
 	
+		// Data availability
+	bool base_fd::i_avail () {
+		fd_set fdset;
+		int r;
+		timeval tm = {0,0};
+		FD_ZERO(&fdset);
+		FD_SET(fd, &fdset);
+		r = ::select(fd+1, &fdset, NULL, NULL, &tm);
+		if (r == -1)
+			throw socketxx::io_error(-1, io_error::READ);
+		return (r == 1 and FD_ISSET(fd, &fdset));
+	}
+	
 		// Destruction
 	void base_fd::fd_close () noexcept {
 		if (shd->autoclose and fd != SOCKETXX_INVALID_HANDLE) { // If file descriptor was not closed by child class, use generic `close()`

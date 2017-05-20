@@ -213,6 +213,9 @@ namespace socketxx {
 			// File descriptor type
 		mode_t fd_type () const;
 		
+			// Data ready to be read
+		bool i_avail ();
+		
 /*			// Aggregation
 		void cork ()   { }
 		void flush ()  { }
