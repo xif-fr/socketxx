@@ -153,30 +153,22 @@ namespace socketxx {
 	public:
 		typedef _client<cli_data_t, void> client; // Server's client typedef
 		
-			// Retained clients list for pooling. Protected by a mutex.
+			// List of retained clients. Protected by a mutex.
 	protected:
 		std::list<client> retained_clients;
+	public:
 		typedef typename std::list<client>::iterator client_it;
 		
 			// Callbacks
 	public:
-#ifndef XIF_NO_STD_FUNCTION
 		typedef std::function<pool_ret_t(client)> cli_callback_t;
 		typedef std::function<pool_ret_t(fd_t)> fd_callback_t;
-#else
-		typedef pool_ret_t (*cli_callback_t) (client);
-		typedef pool_ret_t (*fd_callback_t) (fd_t);
-#endif
 		
 #ifndef XIF_NO_THREADS
-		typedef void*(*cli_thread_routine_t)(server_thread_data*);
+		typedef void* (*cli_thread_routine_t) (server_thread_data*);
 #endif
 		
 	protected:
-		
-			// Some utility methods
-		int clients_fill_fdset (fd_set& s) { fd_t max = 0; FD_ZERO(&s); for (client& cli : retained_clients) { FD_SET(cli.fd, &s); if (cli.fd > max) max = cli.fd; } return max; }
-		client_it _wait_client_activity ();
 		
 			// Mutex for protecting methods that are using clients lists
 #ifndef XIF_NO_THREADS
@@ -226,12 +218,15 @@ namespace socketxx {
 		virtual ~socket_server () noexcept { /* no need to call listening_stop, these actions are automatic */ }
 		
 			// Retain client and return iterator.
-		client_it retain_client (client& _client) { ::pthread_mutex_lock(&mutex); return _client._it = retained_clients.insert(retained_clients.end(), _client); ::pthread_mutex_unlock(&mutex); }
-			// Release retained client. You can get client before releasing if you don't want to close the connection.
-		void release_client (client_it it)        { ::pthread_mutex_lock(&mutex); retained_clients->_it = client_it(); retained_clients.erase(it); ::pthread_mutex_unlock(&mutex); }
+		client_it retain_client (client& _client) { _mutex_lock _m(mutex); return retained_clients.insert(retained_clients.end(), _client); }
+			// Release retained client. The client can be copied before to keep the connection opened.
+		void release_client (client_it it)        { _mutex_lock _m(mutex); retained_clients.erase(it); }
 		
-			// Wait for new client an optionally retain it
-		client wait_new_client ()                 { chkl(); typename socket_base::sockaddr_type addr; socklen_t len = sizeof(addr); socket_t new_fd = _socket_server::_server_accept(socket_base::fd, (sockaddr*)&addr, &len); typename socket_base::_addrt _addr({addr,len}); client cli (new_fd, typename socket_base::addr_info(_addr)); _addr.use(_addr_use_type_t::SERVER_CLI,cli); return cli; }
+			// Set pool-timeout, used as maximum wait timeout in pool methods. Null timeout disable it.
+		void set_pool_timeout (timeval timeout)   { pool_timeout = timeout; }
+		
+			// Wait for new client, and optionally retain it
+		client wait_new_client ();
 		client_it wait_new_client_retained ()     { _mutex_lock _m(mutex); return retain_client(wait_new_client()); }
 			// Pool-timeout aware version of wait_new_client. Ignore signals interrupts.
 		client wait_new_client_timeout ()         { chkl(); _socket_server::_select_throw_stop(socket_base::fd, SOCKETXX_INVALID_HANDLE, pool_timeout, true); return wait_new_client(); }
@@ -249,30 +244,58 @@ namespace socketxx {
 		client wait_new_client_threaded (cli_thread_routine_t thread_fnct, cli_data_t* attached_data = NULL)  { client c(wait_new_client(), attached_data); put_client_threaded(thread_fnct, c); return c; }
 #endif
 		
-			// Pool all retained clients and wait for activity. Returns iterator of first awaked client in the list.
+			// Pool all retained clients and wait for activity. The first awaked client in the list is returned.
 		client_it wait_client_activity ()         { chkl(); _mutex_lock _m(mutex); return this->_wait_client_activity(); }
-			// Fair version : avoids the firsts clients in the list to always be handled before the others, by moving them to the end of the list. Iterators remain valid.
+			// Fair version : avoid the first client in the list to always be handled before the others, by moving each awaked client to the end of the list. Iterators remain valid.
 		client_it wait_client_activity_fair ()    { chkl(); _mutex_lock _m(mutex); client_it it = this->_wait_client_activity(); retained_clients.splice(retained_clients.end(),retained_clients,it); return it; }
 		
-			// Pool all retained clients and wait for activity in loop. If activity occurs, calls back `cli_activity()` function or lambda.
-			// The loop is quitted if a callback ruturns `POOL_QUIT`. A timeout exception can occurs. Interruptions of syscalls are ignored.
-			// /!\ For performance issues, the retained-clients list is scaned only once. If the list is updated (client disconnect for example), you must return `POOL_RESCAN` in the callback.
-			// Theses methods are NOT protected by the mutex and therefore only one pool should be used at a time for a socket_server
-		void wait_activity_loop (cli_callback_t cli_activity);
-			// Waits also for new clients and calls back `new_client` with the freshly accepted but not retained client.
-			// After each `new_client()` callback, the retained-client list is re-scanned, so any change in this list will be seen.
-		void wait_activity_loop (cli_callback_t cli_activity, cli_callback_t new_client);
-			// With `fd_activity` callback defined, you can also monitor inputs on any file descriptors (stdin, pipes, files...)
-		void wait_activity_loop (cli_callback_t cli_activity, cli_callback_t new_client, const std::vector<fd_t>& fds, fd_callback_t fd_activity);
-			// Specialized version : This one monitors only one additional file descriptor
-		void wait_activity_loop (cli_callback_t cli_activity, cli_callback_t new_client, fd_t fd_monitor, fd_callback_t fd_activity);
+			// Pool all retained clients and wait for activity in loop. If activity occurs, `cli_activity()` is called.
+			// Quits if any callback returns `POOL_QUIT`. Timeout exceptions are thrown. Interruptions of syscalls are ignored.
+			// The list of retained clients is scaned only once. To rescan it (eg. after client disconnection), `POOL_RESCAN` can be return from any callback.
+			// Theses methods are not protected by the mutex and therefore only one pool should be used at a time for a socket_server
+		void wait_activity_loop (cli_callback_t cli_activity_f)                                                                                                { _wait_activity_loop<false,false>(cli_activity_f,nullptr,{},nullptr); }
+			// Additonally, wait for new clients. Must be in listening state. `new_client_f` is called with the new client accepted.
+			// New clients are not retained automatically. If the new client is retained, `POOL_RESCAN` can be returned to rescan the list.
+		void wait_activity_loop (cli_callback_t cli_activity_f, cli_callback_t new_client_f)                                                                   { _wait_activity_loop<true,false>(cli_activity_f,new_client_f,{},nullptr); }
+			// Additonally, monitor activity on abritrary file descriptors (stdin, pipes, files…)
+		void wait_activity_loop (cli_callback_t cli_activity_f, cli_callback_t new_client_f, fd_t fd_monitor,              fd_callback_t fd_activity_f)        { _wait_activity_loop<true,true>(cli_activity_f,new_client_f,{fd_monitor},fd_activity_f); }
+		void wait_activity_loop (cli_callback_t cli_activity_f, cli_callback_t new_client_f, const std::vector<fd_t>& fds, fd_callback_t fd_activity_f)        { _wait_activity_loop<true,true>(cli_activity_f,new_client_f,fds,fd_activity_f); }
+	
+			// Iterate through the list of retained clients. `POOL_QUIT` can be returned from the callback to abort the iteration.
+		void clients_foreach (cli_callback_t f)   { for (client_it it = retained_clients.begin(); it != retained_clients.end(); ++it) { if (f(*it) == POOL_QUIT) break; }; }
 		
-			// Set pool-timeout, used as maximum wait timeout in pool methods. Null timeout disable it.
-		void set_pool_timeout (timeval timeout) { pool_timeout = timeout; }
-		
+			// Pool utility methods
+	protected:
+		template <bool newcli, bool monfds> void _wait_activity_loop (cli_callback_t, cli_callback_t, const std::vector<fd_t>&, fd_callback_t);
+		int clients_fill_fdset (fd_set& s);
+		client_it _wait_client_activity ();
 	};
 	
-		///--- Implementations ---///
+		///--- Implementation ---///
+	
+	template <typename socket_base, typename D>
+	typename socket_server<socket_base,D>::client socket_server<socket_base,D>::wait_new_client () {
+		chkl();
+		typename socket_base::sockaddr_type addr;
+		socklen_t len = sizeof(addr);
+		socket_t new_fd = _socket_server::_server_accept(socket_base::fd, (sockaddr*)&addr, &len);
+		typename socket_base::_addrt _addr({addr,len});
+		client cli (new_fd, typename socket_base::addr_info(_addr));
+		_addr.use(_addr_use_type_t::SERVER_CLI,cli);
+		return cli;
+	}
+	
+	template <typename socket_base, typename D>
+	int socket_server<socket_base,D>::clients_fill_fdset (fd_set& s) {
+		fd_t max = 0;
+		FD_ZERO(&s);
+		for (client& cli : retained_clients) {
+			FD_SET(cli.fd, &s);
+			if (cli.fd > max)
+				max = cli.fd;
+		}
+		return max;
+	}
 	
 	template <typename socket_base, typename D>
 	typename socket_server<socket_base,D>::client_it socket_server<socket_base,D>::_wait_client_activity () {
@@ -284,116 +307,49 @@ namespace socketxx {
 				return it;
 	}
 	
-	template <typename socket_base, typename D>
-	void socket_server<socket_base,D>::wait_activity_loop (cli_callback_t client_activity) {
-		chkl();
+	template <typename socket_base, typename D> template <bool newcli, bool monfds>
+	void socket_server<socket_base,D>::_wait_activity_loop (cli_callback_t client_activity_f, cli_callback_t new_client_f, const std::vector<fd_t>& fds, fd_callback_t fd_activity_f) {
+		if (newcli) chkl();
 		fd_set set;
 		fd_t maxsock;
 	_rescan:
 		maxsock = this->clients_fill_fdset(set);
+		if (newcli) {
+			FD_SET(socket_base::fd, &set);
+			if (socket_base::fd > maxsock) maxsock = socket_base::fd;
+		}
+		if (monfds)
+			for (fd_t fd_monitor : fds) {
+				FD_SET(fd_monitor, &set);
+				if (fd_monitor > maxsock) maxsock = fd_monitor;
+			}
 		for (;;) {
 			fd_set cpset = set;
 			_socket_server::_select(maxsock, &cpset, pool_timeout);
+			pool_ret_t r = POOL_CONTINUE;
+			if (monfds)
+				for (fd_t fd_monitor : fds) {
+					if (FD_ISSET(fd_monitor, &cpset)) {
+						r = fd_activity_f(fd_monitor);
+						if (r != POOL_CONTINUE) goto _r_check;
+					}
+				}
+			if (newcli)
+				if (FD_ISSET(socket_base::fd, &cpset)) {
+					client new_cli = wait_new_client();
+					r = new_client_f(new_cli);
+					if (r != POOL_CONTINUE) goto _r_check;
+				}
 			for (client_it it = retained_clients.begin(); it != retained_clients.end(); ++it) {
 				if (FD_ISSET(it->fd, &cpset)) {
-					pool_ret_t r = client_activity(*it);
-					if (r != POOL_CONTINUE) { if (r == POOL_RESCAN) goto _rescan; if (r == POOL_QUIT) return; }
+					r = client_activity_f(*it);
+					if (r != POOL_CONTINUE) goto _r_check;
 				}
 			}
-		}
-	}
-	
-	template <typename socket_base, typename D>
-	void socket_server<socket_base,D>::wait_activity_loop (cli_callback_t client_activity, cli_callback_t new_client) {
-		chkl();
-		fd_set set;
-		fd_t maxsock;
-	_rescan:
-		maxsock = this->clients_fill_fdset(set);
-		FD_SET(socket_base::fd, &set);
-		if (maxsock < socket_base::fd) maxsock = socket_base::fd;
-		for (;;) {
-			fd_set cpset = set;
-			_socket_server::_select(maxsock, &cpset, pool_timeout);
-			if (FD_ISSET(socket_base::fd, &cpset)) { // New client !
-				client new_cli = wait_new_client();
-				if (new_client(new_cli) == POOL_QUIT) return;
-				goto _rescan;
-			}
-			for (client_it it = retained_clients.begin(); it != retained_clients.end(); ++it) {
-				if (FD_ISSET(it->fd, &cpset)) {
-					pool_ret_t r = client_activity(*it);
-					if (r != POOL_CONTINUE) { if (r == POOL_RESCAN) goto _rescan; if (r == POOL_QUIT) return; }
-				}
-			}
-		}
-	}
-	
-	template <typename socket_base, typename D>
-	void socket_server<socket_base,D>::wait_activity_loop (cli_callback_t client_activity, cli_callback_t new_client, const std::vector<fd_t>& fds, fd_callback_t fd_activity) {
-		chkl();
-		fd_set set;
-		fd_t maxsock;
-	_rescan:
-		maxsock = this->clients_fill_fdset(set);
-		FD_SET(socket_base::fd, &set);
-		if (socket_base::fd > maxsock) maxsock = socket_base::fd;
-		for (fd_t fd_monitor : fds) {
-			FD_SET(fd_monitor, &set);
-			if (fd_monitor > maxsock) maxsock = fd_monitor;
-		}
-		for (;;) {
-			fd_set cpset = set;
-			_socket_server::_select(maxsock, &cpset, pool_timeout);
-			if (FD_ISSET(socket_base::fd, &cpset)) { // New client !
-				client new_cli = wait_new_client();
-				if (new_client(new_cli) == POOL_QUIT) return;
-				goto _rescan;
-			}
-			for (client_it it = retained_clients.begin(); it != retained_clients.end(); ++it) {
-				if (FD_ISSET(it->fd, &cpset)) {
-					pool_ret_t r = client_activity(*it);
-					if (r != POOL_CONTINUE) { if (r == POOL_RESCAN) goto _rescan; if (r == POOL_QUIT) return; }
-				}
-			}
-			for (fd_t fd_monitor : fds) { // Check for file descriptor activity
-				if (FD_ISSET(fd_monitor, &cpset)) {
-					pool_ret_t r = fd_activity(fd_monitor);
-					if (r != POOL_CONTINUE) { if (r == POOL_RESCAN) goto _rescan; if (r == POOL_QUIT) return; }
-				}
-			}
-		}
-	}
-	
-	template <typename socket_base, typename D>
-	void socket_server<socket_base,D>::wait_activity_loop (cli_callback_t client_activity, cli_callback_t new_client, fd_t fd_monitor, fd_callback_t fd_activity) {
-		chkl();
-		fd_set set;
-		fd_t maxsock;
-	_rescan:
-		maxsock = this->clients_fill_fdset(set);
-		FD_SET(socket_base::fd, &set);
-		if (socket_base::fd > maxsock) maxsock = socket_base::fd;
-		FD_SET(fd_monitor, &set);
-		if (fd_monitor > maxsock) maxsock = fd_monitor;
-		for (;;) {
-			fd_set cpset = set;
-			_socket_server::_select(maxsock, &cpset, pool_timeout);
-			if (FD_ISSET(fd_monitor, &cpset)) { // File descriptor activity !
-				pool_ret_t r = fd_activity(fd_monitor);
-				if (r != POOL_CONTINUE) { if (r == POOL_RESCAN) goto _rescan; if (r == POOL_QUIT) return; }
-			}
-			if (FD_ISSET(socket_base::fd, &cpset)) { // New client !
-				client new_cli = wait_new_client();
-				if (new_client(new_cli) == POOL_QUIT) return;
-				goto _rescan;
-			}
-			for (client_it it = retained_clients.begin(); it != retained_clients.end(); ++it) {
-				if (FD_ISSET(it->fd, &cpset)) {
-					pool_ret_t r = client_activity(*it);
-					if (r != POOL_CONTINUE) { if (r == POOL_RESCAN) goto _rescan; if (r == POOL_QUIT) return; }
-				}
-			}
+		_r_check:
+			if (r == POOL_RESCAN) goto _rescan;
+			if (r == POOL_QUIT) return;
+			
 		}
 	}
 	
