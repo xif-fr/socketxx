@@ -208,11 +208,11 @@ namespace socketxx {
 		
 			// Constructor : set up the server
 			// Take the addr struct for binding, the pending client queue for accepting (SOMAXCONN can be used if defined)
-		socket_server (typename socket_base::addr_info addr, uint listen_max, bool reuse = false) : socket_base(), listen_addr(addr), listening(false), pool_timeout(NULL_TIMEVAL) {
+		socket_server (typename socket_base::addr_info addr, uint listen_max, bool reuse = false) : socket_base(), listen_addr(addr), listening(false), pool_timeout(TIMEOUT_INF) {
 			this->listening_start(listen_max, reuse);
 		}
 			// Constructor, without starting listening
-		socket_server (typename socket_base::addr_info addr) : socket_base(), listen_addr(addr), listening(false), pool_timeout(NULL_TIMEVAL) {}
+		socket_server (typename socket_base::addr_info addr) : socket_base(), listen_addr(addr), listening(false), pool_timeout(TIMEOUT_INF) {}
 		
 			// Destructor
 		virtual ~socket_server () noexcept { /* no need to call listening_stop, these actions are automatic */ }

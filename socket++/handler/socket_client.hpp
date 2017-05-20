@@ -46,14 +46,14 @@ namespace socketxx { namespace end {
 		
 	public:
 			// Constructor from addr_info
-		socket_client (typename socket_base::addr_info addr, timeval max_wait = NULL_TIMEVAL); // max_wait is used only for connect timeout
+		socket_client (typename socket_base::addr_info addr, timeval max_wait = TIMEOUT_INF); // max_wait is used only for connect timeout
 	};
 	
 	template <typename socket_base> 
 	socket_client<socket_base>::socket_client (typename socket_base::addr_info addr, timeval max_wait) : socket_base() {
 		auto _addr = addr._getaddr();
 		_addr.use(_addr_use_type_t::CLIENT, *this);
-		if (max_wait == NULL_TIMEVAL) 
+		if (max_wait == TIMEOUT_INF)
 			_socket_client::connect(socket_base::fd, (const sockaddr*)&_addr.addr, _addr.len);
 		else 
 			_socket_client::connect_timeout(socket_base::fd, this->base_fd::fcntl_flags(), (const sockaddr*)&_addr.addr, _addr.len, max_wait);

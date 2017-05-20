@@ -216,7 +216,7 @@ namespace socketxx {
 /*			// Aggregation
 		void cork ()   { }
 		void flush ()  { }
-		#warning TO DO : flush() before of after last write() ?*/
+		#warning TO DO : flush() before or after last write() ?*/
 		
 		// Common I/O routines
 	protected:
@@ -257,16 +257,16 @@ namespace socketxx {
 	public:
 		
 			// Public constructors with already created socket
-		base_pipe (fd_t handle, bool autoclose_handle) : base_fd(autoclose_handle, handle), timeout(NULL_TIMEVAL) { _base_pipe::_check_pipe(handle, rw); }
+		base_pipe (fd_t handle, bool autoclose_handle) : base_fd(autoclose_handle, handle), timeout(TIMEOUT_INF) { _base_pipe::_check_pipe(handle, rw); }
 			// Copy constuctor
 		base_pipe (const base_pipe<rw>& other) : base_fd(other), timeout(other.timeout) {}
 			// Construct from base_fd
-		base_pipe (const base_fd& base) : base_fd(base), timeout(NULL_TIMEVAL) { _base_pipe::_check_pipe(this->fd, rw); }
+		base_pipe (const base_fd& base) : base_fd(base), timeout(TIMEOUT_INF) { _base_pipe::_check_pipe(this->fd, rw); }
 		
 			// Destructor
 		virtual ~base_pipe () {}
 		
-			// Timeout (modifications dot not spread across copies)
+			// Timeout. Modifications dot not spread across copies. Special values : TIMEOUT_INF, TIMEOUT_NOBLOCK
 		timeval timeout;
 		void set_read_timeout (timeval tm) { this->timeout = tm; }
 		timeval get_read_timeout () const { return timeout; }

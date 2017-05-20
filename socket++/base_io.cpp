@@ -101,7 +101,6 @@ namespace socketxx {
 	}
 	
 	void _base_pipe::_pipe_select_wait (fd_t fd, timeval* tm) {
-		if (*tm == NULL_TIMEVAL) return;
 		fd_set select_set;
 		int r_sel;
 	select_redo:
@@ -120,7 +119,8 @@ namespace socketxx {
 	}
 	
 	size_t _base_pipe::_i_pipe (fd_t fd, void* d, size_t maxlen, timeval tm) {
-		_base_pipe::_pipe_select_wait(fd, &tm);
+		if (tm != TIMEOUT_INF)
+			_base_pipe::_pipe_select_wait(fd, &tm);
 		ssize_t r;
 		r = ::read(fd, d, maxlen);
 		if (r <= 0) throw socketxx::io_error(r, io_error::READ);
@@ -130,7 +130,8 @@ namespace socketxx {
 		ssize_t r;
 		char* data = (char*)d;
 		while (len != 0) {
-			_base_pipe::_pipe_select_wait(fd, &tm);
+			if (tm != TIMEOUT_INF)
+				_base_pipe::_pipe_select_wait(fd, &tm);
 			r = ::read(fd, data, len);
 			if (r <= 0) throw socketxx::io_error(r, io_error::READ);
 			data += r;
@@ -194,11 +195,18 @@ namespace socketxx {
 	
 		// Timeouts
 	void base_socket::set_read_timeout (timeval timeout) {
+		#warning TO DO : Implement non blocking calls
+		if (timeout == TIMEOUT_NOBLOCK)
+			throw socketxx::error("set_read_timeout : non blocking IO ops not supported");
+		if (timeout == TIMEOUT_INF)
+			timeout = {0,0};
 		this->_setopt_sock(fd, SO_RCVTIMEO, &timeout, sizeof(timeval));
 	}
 	timeval base_socket::get_read_timeout () const {
-		timeval tm = NULL_TIMEVAL;
+		timeval tm = {0};
 		this->_getopt_sock(fd, SO_RCVTIMEO, &tm, sizeof(timeval));
+		if (tm == timeval({0,0}))
+			tm = TIMEOUT_INF;
 		return tm;
 	}
 	

@@ -25,7 +25,7 @@ namespace socketxx { namespace io {
 			FD_SET(fd1, &select_set);
 			FD_SET(fd2, &select_set);
 			timeval tm = timeout;
-			r = ::select(maxfd, &select_set, NULL, NULL, (timeout==NULL_TIMEVAL)?(timeval*)NULL:&tm);
+			r = ::select(maxfd, &select_set, NULL, NULL, (timeout==TIMEOUT_INF)?(timeval*)NULL:&tm);
 			if (r == -1) {
 				if (errno == EINTR) continue;
 				throw socketxx::other_error("select() error while tunneling");

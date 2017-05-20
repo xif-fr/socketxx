@@ -45,8 +45,8 @@ typedef fd_t socket_t;
 // Timeval comparing
 inline bool operator== (timeval first, timeval second) { return (first.tv_sec == second.tv_sec) && (first.tv_usec == second.tv_usec); }
 inline bool operator!= (timeval first, timeval second) { return !(first == second); }
-// Timeval 0
-#define NULL_TIMEVAL timeval({0,0})
+#define TIMEOUT_INF timeval({(time_t)-1,0}) // No timeout
+#define TIMEOUT_NOBLOCK timeval({0,0}) // For non blocking IO ops, when supported
 
 namespace socketxx {
 

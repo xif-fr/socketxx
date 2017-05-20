@@ -53,7 +53,7 @@ namespace socketxx { namespace end {
 			FD_ZERO(&select_set);
 			FD_SET(fd1, &select_set);
 			if (fd2 != SOCKETXX_INVALID_HANDLE) FD_SET(fd2, &select_set);
-			r_sel = ::select(maxfd, &select_set, NULL, NULL, (timeout==NULL_TIMEVAL)?NULL:&timeout);
+			r_sel = ::select(maxfd, &select_set, NULL, NULL, (timeout==TIMEOUT_INF)?NULL:&timeout);
 			if (r_sel == -1) {
 				if (errno == EINTR && ignsig) goto select_redo;
 				throw server_pool_error(server_pool_error::SELECT_ERR);
@@ -78,7 +78,7 @@ namespace socketxx { namespace end {
 				FD_SET(fd_monitor, &select_set);
 				if (fd_monitor > maxfd) maxfd = fd_monitor;
 			}
-			r_sel = ::select(maxfd+1, &select_set, NULL, NULL, (timeout==NULL_TIMEVAL)?NULL:&timeout);
+			r_sel = ::select(maxfd+1, &select_set, NULL, NULL, (timeout==TIMEOUT_INF)?NULL:&timeout);
 			if (r_sel == -1) {
 				if (errno == EINTR && ignsig) goto select_redo;
 				throw server_pool_error(server_pool_error::SELECT_ERR);
@@ -99,7 +99,7 @@ namespace socketxx { namespace end {
 			int r_sel;
 		select_redo:
 			tm = timeout;
-			r_sel = ::select(maxfd+1, set, NULL, NULL, (tm==NULL_TIMEVAL)?NULL:&tm);
+			r_sel = ::select(maxfd+1, set, NULL, NULL, (tm==TIMEOUT_INF)?NULL:&tm);
 			if (r_sel == -1) {
 				if (errno == EINTR) goto select_redo;
 				throw server_pool_error(server_pool_error::SELECT_ERR);
