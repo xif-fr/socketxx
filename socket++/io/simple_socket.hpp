@@ -10,6 +10,7 @@
 #include <utility>
 #include <xifutils/polyvar.hpp>
 #include <type_traits>
+#include <functional>
 
 	// OS headers
 #include <unistd.h>
