@@ -20,8 +20,8 @@ namespace socketxx {
 		// DNS resolving error
 	class dns_resolve_error : public socketxx::classic_error {
 	public:
-		const char* const failed_hostname;
-		dns_resolve_error (const char* host) noexcept : classic_error(), failed_hostname(host) {}
+		std::string failed_hostname;
+		dns_resolve_error (std::string host) noexcept : classic_error(), failed_hostname(host) {}
 		virtual ~dns_resolve_error() noexcept {}
 	protected:
 		virtual std::string descr () const;
