@@ -1,9 +1,9 @@
 /**********************************************************************
- * Xif Socket++ Networking Library
+ * Socket++ Networking Library
  **********************************************************************
- * Copyright Félix Faisant 2012 - 2016
+ * Copyright Félix Faisant 2012 - 2019
  * Software under GNU LGPL http://www.gnu.org/licenses/lgpl.html
- * For bug reports, help, or improvement requests, please mail at Félix Faisant <xcodexif@xif.fr>
+ * For bug reports, help, or improvement requests, please mail at Félix Faisant <felix.faisant@xif.fr>
  **********************************************************************
  * Socket++ is a light and modular C++ warper library for POSIX Input/Output systems,
  *  especially TCP/IP sockets
@@ -85,6 +85,7 @@
 	// OS headers
 #include <sys/socket.h>
 #include <string>
+#include <stdexcept>
 
 namespace socketxx {
 	

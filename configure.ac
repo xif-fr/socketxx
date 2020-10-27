@@ -1,4 +1,4 @@
-AC_INIT([socket++], [3.13], [xcodexif@xif.fr], [socket++], [http://dev.xif.fr:7979/socketxx])
+AC_INIT([socket++], [3.13], [felix.faisant@xif.fr], [socket++], [http://dev.xif.fr:7979/socketxx])
 AM_INIT_AUTOMAKE([foreign -Wall])
 AC_CONFIG_HEADERS([socket++/config.h])
 AC_CONFIG_SRCDIR([socket++/base_io.cpp])
